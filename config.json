@@ -1,0 +1,174 @@
+[
+  {
+    "APP": "asu.edu.ru",
+    "APP_KEY": "eWLVLjZtLGQHYlmfsgdlgUaZKOgXFWRWPmRfugYu",
+    "DB_CONNECT": {
+      "driver": "mysql",
+      "host": "172.16.250.1",
+      "port": "3306",
+      "database": "admin_aspu_ru",
+      "username": "admin_muscul",
+      "password": ",fpfukfdyjujgjhnfkf"
+    },
+    "TASKS_TABLE": "admin_search_task",
+    "TABLES": [
+      {
+        "table_id": "0",
+        "table_name": "sections_texts",
+        "field_id": "id",
+        "field_lang": "id_lang",
+        "field_update": "",
+        "fields_title": [
+          "caption"
+        ],
+        "fields_content": [
+          "caption",
+          "text",
+          "message_alt"
+        ],
+        "fields_optional": [
+          "url"
+        ]
+      },
+      {
+        "table_id": "1",
+        "table_name": "news_news_texts",
+        "field_id": "id",
+        "field_lang": "id_lang",
+        "field_update": "",
+        "fields_title": [
+          "caption"
+        ],
+        "fields_content": [
+          "short_text",
+          "long_text"
+        ],
+        "fields_optional": [
+          "url"
+        ]
+      },
+      {
+        "table_id": "2",
+        "table_name": "employees",
+        "field_id": "id",
+        "field_lang": "id_lang",
+        "field_update": "",
+        "fields_title": [
+          "sName",
+          "fName",
+          "iName"
+        ],
+        "fields_content": [
+          "Position",
+          "Scientific_interests",
+          "Monographies",
+          "Articles",
+          "Dictionaries",
+          "Chrestomathy",
+          "Educational_publications",
+          "Methodical_recommendations",
+          "Atlases",
+          "Other",
+          "Popular_science_publications",
+          "Experience_in_specialty"
+        ],
+        "fields_optional": [
+          "url"
+        ]
+      },
+      {
+        "table_id": "3",
+        "table_name": "partners_partners_texts",
+        "field_id": "id",
+        "field_lang": "id_lang",
+        "field_update": "",
+        "fields_title": [
+          "caption"
+        ],
+        "fields_content": [
+          "short_text",
+          "long_text"
+        ],
+        "fields_optional": [
+          "url"
+        ]
+      }
+    ],
+    "LANGUAGES": {
+      "1": "ru",
+      "2": "en"
+    },
+    "INDEX_EVERY_DAY": "1"
+  },
+  {
+    "APP": "kaspy.asu.edu.ru",
+    "APP_KEY": "NMsoLoXgfyrKDWVZyFPVkNZgNYFTfcoVaZttqZvp",
+    "DB_CONNECT": {
+      "driver": "mysql",
+      "host": "172.16.250.1",
+      "port": "3306",
+      "database": "admin_kaspy_db",
+      "username": "admin_kaspy",
+      "password": "aM8OFAXc8x"
+    },
+    "TASKS_TABLE": "",
+    "TABLES": [
+      {
+        "table_id": "0",
+        "table_name": "articles",
+        "field_id": "article_id",
+        "field_lang": "lang_id",
+        "field_update": "updated_at",
+        "fields_title": [
+          "title"
+        ],
+        "fields_content": [
+          "annotation",
+          "text"
+        ],
+        "fields_optional": [
+        ]
+      },
+      {
+        "table_id": "1",
+        "table_name": "authors",
+        "field_id": "author_id",
+        "field_lang": "lang_id",
+        "field_update": "updated_at",
+        "fields_title": [
+          "surname",
+          "initials"
+        ],
+        "fields_content": [
+          "surname",
+          "initials",
+          "academic_degree",
+          "post",
+          "university",
+          "city"
+        ],
+        "fields_optional": []
+      },
+      {
+        "table_id": "2",
+        "table_name": "articles",
+        "field_id": "article_id",
+        "field_lang": "lang_id",
+        "field_update": "updated_at",
+        "fields_title": [
+          "keywords"
+        ],
+        "fields_content": [
+          "keywords"
+        ],
+        "fields_optional": [
+        ]
+      }
+    ],
+    "LANGUAGES": {
+      "1": "ru",
+      "2": "en"
+    },
+    "INDEX_EVERY_DAY": "30"
+  }
+]

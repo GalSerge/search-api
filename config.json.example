@@ -1,0 +1,38 @@
+[
+  {
+    "APP": "",
+    "APP_KEY": "",
+    "DB_DRIVER": "",
+    "DB_HOST": "",
+    "DB_PORT": "",
+    "DB_NAME": "",
+    "DB_USER": "",
+    "DB_PASSWORD": "",
+    "TASKS_TABLE": "",
+    "TABLES": [
+      {
+        "table_id": "",
+        "table_name": "",
+        "field_id": "",
+        "field_lang": "",
+        "field_update": "",
+        "fields_title": [
+          ""
+        ],
+        "fields_content": [
+          ""
+        ],
+        "fields_optional": [
+          ""
+        ]
+      }
+    ],
+    "LANGUAGES": [
+      {
+        "1": "ru",
+        "2": "en"
+      }
+    ],
+    "INDEX_EVERY_DAY": ""
+  }
+]
