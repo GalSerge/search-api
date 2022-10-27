@@ -12,10 +12,17 @@
     "TABLES": [
       {
         "table_id": "",
+        "queries": [
+            "select": "SELECT [table_id], [field_id], [field_lang], title:{{[field_title:{[function]}]}}, text:{{[field_text:{[function]}]}}, optional:{{[field_optional:{[function]}]}} FROM [table_name]",
+            "num_rows": "SELECT [field_id] FROM [table_name] ORDER BY [field_id] DESC LIMIT 1",
+        ]
+        "field_timestamp": "",
+
         "table_name": "",
         "field_id": "",
         "field_lang": "",
         "field_update": "",
+
         "fields_title": [
           ""
         ],
