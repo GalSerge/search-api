@@ -12,11 +12,15 @@
     "TABLES": [
       {
         "table_id": "",
+        // Если используется индексирование через таблицу задания, установить параметр равным 1.
+        "from_task": 0,
         "queries": [
-            "select": "SELECT [table_id], [field_id], [field_lang], title:{{[field_title:{[function]}]}}, text:{{[field_text:{[function]}]}}, optional:{{[field_optional:{[function]}]}} FROM [table_name]",
-            "num_rows": "SELECT [field_id] FROM [table_name] ORDER BY [field_id] DESC LIMIT 1",
+            "select": "SELECT [table_id], [field_id], [field_lang], [field_active], title:{{[field_title:{[function]}]}}, text:{{[field_text:{[function]}]}}, optional:{{[field_optional:{[function]}]}} FROM [table_name]"
         ]
         "field_timestamp": "",
+
+        "field_active": "",
+        "active_value": "",
 
         "table_name": "",
         "field_id": "",
@@ -29,6 +33,9 @@
         "fields_content": [
           ""
         ],
+
+        // Если используется индексирование через таблицу задания, то дополнительные поля могут быть получены как из таблицы задания,
+        // так и из индексируемой таблицы. Для определенности следует вносить поля с указанием таблицы через точку (как в запросах SQL).
         "fields_optional": [
           ""
         ]

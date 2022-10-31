@@ -1,4 +1,5 @@
 import re
+import queries
 
 
 def parse_fields(fields: list):
@@ -55,3 +56,137 @@ def parse_query(query: str):
         mask += [i] * len(fields)
 
     return query, functions, mask
+
+
+def prepare_fields(config: dict):
+    """
+    Готовит поля из конфига к формированию запроса и последующей обработке результата
+    :param config:
+    :return:
+    """
+    fields_types = ['title', 'content', 'optional']
+    fields = dict()
+    functions = []
+    mask = []
+
+    for i, type_ in enumerate(fields_types):
+        funcs, clean_fields = parse_fields(config['fields_' + type_])
+        fields[type_] = '' if len(clean_fields) == 0 else ', ' + ', `'.join(clean_fields) + '`'
+        functions += funcs
+        mask += [i] * len(clean_fields)
+
+    return fields, functions, mask
+
+
+def get_select_query(config: dict, timestamp: bool = False, every_day: str = ''):
+    """
+    Формирует запрос на выборку данных для индекса
+    :param config:
+    :param timestamp:
+    :param every_day:
+    :return:
+    """
+    if config.get('queries'):
+        query, functions, mask = parse_query(config['queries']['select'])
+    else:
+        fields, functions, mask = prepare_fields(config)
+
+        query = queries.select.format(
+            **config,
+            **fields)
+
+    if timestamp and every_day and config['field_timestamp'] != '':
+        where_cond = queries.where_timestamp.format(
+            field_timestamp=config['field_timestamp'],
+            every_day=every_day
+        )
+
+        query, success = re.subn(r'where:{{.+?}}', where_cond, query)
+        if not success:
+            query += ' WHERE ' + where_cond
+    else:
+        query, success = re.subn(r'where:{{.+?}}', '', query)
+
+    query += queries.limit
+
+    return query, functions, mask
+
+
+def get_select_task_query(config: dict):
+    """
+    Формирует запрос на извлечение данных из таблицы задания
+    :param config:
+    :return:
+    """
+    fields, functions, mask = prepare_fields(config)
+
+    query = queries.select_task.format(**config, **fields)
+    query += queries.limit
+
+    return query, functions, mask
+
+
+def prepare_builder_input(docs: list, functions: list, mask: list, config: dict, from_task: bool):
+    """
+    Обрабатывает результат, полученный из БД, готовит к подаче индексирующему модулю
+    :param docs:
+    :param functions:
+    :param mask:
+    :param config:
+    :param from_task:
+    :return:
+    """
+    result = []
+
+    for doc in docs:
+        prepared_doc = []
+        prepared_doc += doc[:3]
+
+        # указание для индексирующего модуля и коэффициент релевантности
+        if from_task:
+            prepared_doc += doc[3:5]
+        elif doc[3] == config['active_value']:
+            prepared_doc += ['add', 0]
+        else:
+            prepared_doc += ['del']
+
+        title_content_optional = ['', '']
+
+        # маска указывает на тип поля: заголовок, контент или доп. поле
+        for i in range(len(mask)):
+            if functions[i] is not None:
+                text = doc[4+i]
+                for f in functions[i]:
+                    text = eval('f(text)')
+
+                if mask[i] < 2:
+                    title_content_optional[mask[i]] += ' ' + text
+                else:
+                    title_content_optional += [text]
+
+        result.append(title_content_optionalt)
+
+    return result
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
