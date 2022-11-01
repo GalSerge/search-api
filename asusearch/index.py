@@ -8,6 +8,7 @@ from gensim.models import TfidfModel
 from gensim.similarities import SparseMatrixSimilarity
 from asusearch.tools import preprocess_string
 
+import numpy as np
 import sqlalchemy as sql
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
@@ -80,92 +81,167 @@ class IndexBuilder:
 
         self.session.commit()
 
-    async def add(self, docs: list, optional_fields: list, lang: dict):
-        lemmatize_texts = []
-        lemmatize_titles = []
-        for doc in docs:
-            lemmas = preprocess_string(s=doc[4], lang=lang[str(doc[2])])
-            lemmatize_texts.append(lemmas)
-            lemmas = preprocess_string(s=doc[3], lang=lang[str(doc[2])])
-            lemmatize_titles.append(lemmas)
+    # async def add(self, docs: list, optional_fields: list, lang: dict):
+    #     lemmatize_texts = []
+    #     lemmatize_titles = []
+    #     for doc in docs:
+    #         lemmas = preprocess_string(s=doc[4], lang=lang[str(doc[2])])
+    #         lemmatize_texts.append(lemmas)
+    #         lemmas = preprocess_string(s=doc[3], lang=lang[str(doc[2])])
+    #         lemmatize_titles.append(lemmas)
+    #
+    #         _doc = {
+    #             'type': doc[0],
+    #             'doc_id': doc[1],
+    #             'lang_id': doc[2],
+    #         }
+    #
+    #         # дополнительные данные о документах в корпусе
+    #         optional = dict()
+    #         for field_i, field in enumerate(optional_fields):
+    #             optional[field] = doc[field_i + 5]
+    #
+    #         if optional:
+    #             _doc['optional'] = json.dumps(optional)
+    #
+    #         query_insert = sql.insert(self.docs_table, values=_doc)
+    #         self.session.execute(query_insert)
+    #
+    #     self.dictionary.add_documents(lemmatize_texts)
+    #     self.dictionary.add_documents(lemmatize_titles)
+    #
+    #     self.corpus_texts += [self.dictionary.doc2bow(text) for text in lemmatize_texts]
+    #     self.corpus_titles += [self.dictionary.doc2bow(title) for title in lemmatize_titles]
 
-            _doc = {
-                'type': doc[0],
-                'doc_id': doc[1],
-                'lang_id': doc[2],
-            }
+        return True
+
+    # async def update(self, docs: list, optional_fields: list, lang: dict):
+    #     if not self.index_loaded:
+    #         raise Exception('Nothing update. Index not loaded: call load()')
+    #
+    #     for input_doc in docs:
+    #         # получение порядкового номера документа в корпусе
+    #         doc_order = self.get_doc_order(input_doc) - 1
+    #
+    #         if doc_order >= 0:
+    #             lemmas_title = preprocess_string(s=input_doc[3], lang=lang[str(input_doc[2])])
+    #             lemmas_text = preprocess_string(s=input_doc[4], lang=lang[str(input_doc[2])])
+    #
+    #             self.dictionary.add_documents([lemmas_title])
+    #             self.dictionary.add_documents([lemmas_text])
+    #
+    #             self.corpus_titles[doc_order] = self.dictionary.doc2bow(lemmas_title)
+    #             self.corpus_texts[doc_order] = self.dictionary.doc2bow(lemmas_text)
+    #
+    #             # обновление дополнительных данных о документах в корпусе
+    #             optional = dict()
+    #             for field_i, field in enumerate(optional_fields):
+    #                 optional[field] = input_doc[field_i + 5]
+    #
+    #             if optional:
+    #                 query_update = sql.update(self.docs_table, values={'optional': json.dumps(optional)}). \
+    #                     where(sql.and_(self.docs_table.c.type == input_doc[0],
+    #                                    self.docs_table.c.doc_id == input_doc[1],
+    #                                    self.docs_table.c.lang_id == input_doc[2]))
+    #                 self.session.execute(query_update)
+    #
+    #     return True
+
+    async def update(self, docs: list, optional_fields: list, lang: dict):
+        """
+        [type, doc_id, lang_id, act, coef, title, text, optional]
+        :param docs: список списков или кортежей вида [type, doc_id, lang_id, act, coef, title, text, optional]
+        :param optional_fields: список названий дополнительных полей
+        :param lang:
+        :return:
+        """
+        for input_doc in docs:
+            # получение порядкового номера документа в корпусе
+            doc_id = self.get_doc_order(input_doc) - 1
+
+            if input_doc[3] == 'del':
+                if doc_id >= 0:
+                    self.delete(input_doc, doc_id)
+                continue
+
+            lemmas_title = preprocess_string(s=input_doc[5], lang=lang[str(input_doc[2])])
+            lemmas_text = preprocess_string(s=input_doc[6], lang=lang[str(input_doc[2])])
+
+            self.dictionary.add_documents([lemmas_title])
+            self.dictionary.add_documents([lemmas_text])
 
             # дополнительные данные о документах в корпусе
             optional = dict()
+            # если доп. поля получены, но список полей пуст, он формируется далее
+            if len(optional_fields) == 0:
+                optional_fields = ['field_' + str(i) for i in range(len(doc) - 7)]
+
             for field_i, field in enumerate(optional_fields):
-                optional[field] = doc[field_i + 5]
+                optional[field] = doc[field_i + 7]
 
-            if optional:
-                _doc['optional'] = json.dumps(optional)
+            if doc_id >= 0:
+                self.corpus_titles[doc_id] = self.dictionary.doc2bow(lemmas_title)
+                self.corpus_texts[doc_id] = self.dictionary.doc2bow(lemmas_text)
 
-            query_insert = sql.insert(self.docs_table, values=_doc)
-            self.session.execute(query_insert)
-
-        self.dictionary.add_documents(lemmatize_texts)
-        self.dictionary.add_documents(lemmatize_titles)
-
-        self.corpus_texts += [self.dictionary.doc2bow(text) for text in lemmatize_texts]
-        self.corpus_titles += [self.dictionary.doc2bow(title) for title in lemmatize_titles]
-
-        return True
-
-    async def update(self, docs: list, optional_fields: list, lang: dict):
-        if not self.index_loaded:
-            raise Exception('Nothing update. Index not loaded: call load()')
-
-        for input_doc in docs:
-            # получение порядкового номера документа в корпусе
-            doc_order = self.get_doc_order(input_doc) - 1
-
-            if doc_order >= 0:
-                lemmas_title = preprocess_string(s=input_doc[3], lang=lang[str(input_doc[2])])
-                lemmas_text = preprocess_string(s=input_doc[4], lang=lang[str(input_doc[2])])
-
-                self.dictionary.add_documents([lemmas_title])
-                self.dictionary.add_documents([lemmas_text])
-
-                self.corpus_titles[doc_order] = self.dictionary.doc2bow(lemmas_title)
-                self.corpus_texts[doc_order] = self.dictionary.doc2bow(lemmas_text)
-
-                # обновление дополнительных данных о документах в корпусе
-                optional = dict()
-                for field_i, field in enumerate(optional_fields):
-                    optional[field] = input_doc[field_i + 5]
-
-                if optional:
-                    query_update = sql.update(self.docs_table, values={'optional': json.dumps(optional)}). \
-                        where(sql.and_(self.docs_table.c.type == input_doc[0],
-                                       self.docs_table.c.doc_id == input_doc[1],
-                                       self.docs_table.c.lang_id == input_doc[2]))
-                    self.session.execute(query_update)
-
-        return True
-
-    async def delete(self, docs: list):
-        if not self.index_loaded:
-            raise Exception('Nothing delete. Index not loaded: call load()')
-
-        for input_doc in docs:
-            # получение порядкового номера документа в корпусе
-            doc_order = self.get_doc_order(input_doc) - 1
-
-            if doc_order >= 0:
-                query_delete = sql.delete(self.docs_table). \
+                query = sql.update(self.docs_table,
+                                   values={self.docs_table.c.optional: json.dumps(optional),
+                                           self.docs_table.c.coef: self.docs_table.c.coef * 1.05}). \
                     where(sql.and_(self.docs_table.c.type == input_doc[0],
                                    self.docs_table.c.doc_id == input_doc[1],
                                    self.docs_table.c.lang_id == input_doc[2]))
 
-                self.session.execute(query_delete)
+            else:
+                self.corpus_texts.append(self.dictionary.doc2bow(lemmas_text))
+                self.corpus_titles.append(self.dictionary.doc2bow(lemmas_title))
 
-                self.corpus_texts.pop(doc_order)
-                self.corpus_titles.pop(doc_order)
+                _doc = {
+                    'type': input_doc[0],
+                    'doc_id': input_doc[1],
+                    'lang_id': input_doc[2],
+                    'coef': self.sigmoid(input_doc[4]),
+                    'optional': json.dumps(optional)
+                }
+
+                query = sql.insert(self.docs_table, values=_doc)
+
+            self.session.execute(query)
+        self.session.commit()
 
         return True
+
+    async def delete(self, doc: list, doc_id: int):
+        query_delete = sql.delete(self.docs_table). \
+            where(sql.and_(self.docs_table.c.type == doc[0],
+                           self.docs_table.c.doc_id == doc[1],
+                           self.docs_table.c.lang_id == doc[2]))
+
+        self.session.execute(query_delete)
+
+        self.corpus_texts.pop(doc_id)
+        self.corpus_titles.pop(doc_id)
+
+        return True
+
+    # async def delete(self, docs: list):
+    #     if not self.index_loaded:
+    #         raise Exception('Nothing delete. Index not loaded: call load()')
+    #
+    #     for input_doc in docs:
+    #         # получение порядкового номера документа в корпусе
+    #         doc_order = self.get_doc_order(input_doc) - 1
+    #
+    #         if doc_order >= 0:
+    #             query_delete = sql.delete(self.docs_table). \
+    #                 where(sql.and_(self.docs_table.c.type == input_doc[0],
+    #                                self.docs_table.c.doc_id == input_doc[1],
+    #                                self.docs_table.c.lang_id == input_doc[2]))
+    #
+    #             self.session.execute(query_delete)
+    #
+    #             self.corpus_texts.pop(doc_order)
+    #             self.corpus_titles.pop(doc_order)
+    #
+    #     return True
 
     async def delete_by_type(self, type_: int):
         if not self.index_loaded:
@@ -191,7 +267,7 @@ class IndexBuilder:
     def get_doc_order(self, doc: tuple) -> int:
         """
         Возвращает doc_order - порядковый номер документа в корпусе,
-        doc_order-1 является номером строки в таблице индекса
+        doc_order-1 является id строки в таблице индекса
 
         :param doc: tuple с параметрами
         :return: int doc_order или -1, если такой документ отсутствует
@@ -220,3 +296,7 @@ class IndexBuilder:
     async def stop(self):
         self.session.close()
         self.engine.dispose()
+
+    @staticmethod
+    def sigmoid(x):
+        return 1/(1 + np.exp(-x))

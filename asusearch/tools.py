@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""
-Based by gensim.parsing.preprocessing
-"""
 
-import re
 import nltk
-from nltk.corpus import stopwords
-from string import punctuation
-from pymorphy2 import MorphAnalyzer
-from nltk.stem import WordNetLemmatizer
+import re
+
 from gensim import utils
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from pymorphy2 import MorphAnalyzer
+from string import punctuation
+
 
 RE_LATIN = re.compile(r'[A-Za-z]')
+RE_CIRILL = re.compile(r'[А-Яа-я]')
 
 
 def contains_latin(s: str) -> bool:
@@ -19,6 +19,15 @@ def contains_latin(s: str) -> bool:
         return True
     else:
         return False
+
+
+def get_lang(s: str) -> str:
+    if re.search(RE_LATIN, s):
+        return 'en'
+    elif re.search(RE_CIRILL, s):
+        return 'ru'
+    else:
+        return 'none'
 
 
 RE_TAGS = re.compile(r'<([^>]+)>', re.UNICODE)
@@ -30,7 +39,7 @@ def strip_tags(s: str) -> str:
     return RE_SPEC.sub('', s)
 
 
-RE_PUNCT = re.compile('(\s+[%s]+)|([%s]+\s+)' % (re.escape(punctuation), re.escape(punctuation)), re.UNICODE)
+RE_PUNCT = re.compile('[%s]' % re.escape(punctuation), re.UNICODE)
 
 
 def strip_punctuation(s):
@@ -48,53 +57,45 @@ RUS_STOPWORDS = stopwords.words('russian')
 ENG_STOPWORDS = stopwords.words('english')
 
 
-def remove_stopwords(tokens: list, lang: str = 'ru') -> list:
-    if lang == 'ru':
-        return [w for w in tokens if w not in RUS_STOPWORDS]
-    elif lang == 'en':
-        return [w for w in tokens if w not in ENG_STOPWORDS]
+def is_stopword(token: str, lang: str = 'ru') -> list:
+    if lang == 'ru' and token in RUS_STOPWORDS:
+        return True
+    elif lang == 'en' and token in ENG_STOPWORDS:
+        return True
     else:
-        return tokens
-
-
-def strip_short(tokens: list, lang: str = 'ru') -> list:
-    if lang == 'ru':
-        minsize = 3
-    else:
-        minsize = 2
-    return [t for t in tokens if len(t) >= minsize]
+        return False
 
 
 lemmatizer = WordNetLemmatizer()
 morph = MorphAnalyzer(lang='ru')
 
 
-def lemm_text(tokens: list, lang: str = 'ru') -> list:
-    if lang == 'ru':
-        return [morph.parse(token)[0].normal_form for token in tokens]
-    elif lang == 'en':
-        return [lemmatizer.lemmatize(token) for token in tokens]
-    else:
-        return tokens
+def lemm_text(tokens: list) -> list:
+    result = []
+    for token in tokens:
+        lang = get_lang(token)
+
+        if lang == 'ru' and not is_stopword(token, lang):
+            result.append(morph.parse(token)[0].normal_form)
+        elif lang == 'en' and not is_stopword(token, lang):
+            result.append(lemmatizer.lemmatize(token))
+
+    return result
 
 
-# функции для получения "чистых" токенов
-STR_FILTERS = [lambda x: x.lower(), strip_tags, strip_punctuation, strip_multiple_whitespaces]
-# функции языковой обработки токенов
-TOKENS_FILTERS = [strip_short, remove_stopwords, lemm_text]
+# функции для получения "чистой" строки
+STR_FILTERS = [strip_tags, strip_punctuation, strip_multiple_whitespaces]
 
 
-def preprocess_string(s: str, lang: str = 'ru') -> list:
+def preprocess_string(s: str) -> list:
     s = utils.to_unicode(s)
-    if lang == 'ru':
-        s = s.replace('Ё', 'Е')
-        s = s.replace('ё', 'е')
+    s = s.lower()
+    s = s.replace('ё', 'е')
 
     for f in STR_FILTERS:
         s = f(s)
 
     tokens = s.split()
-    for f in TOKENS_FILTERS:
-        tokens = f(tokens, lang)
+    tokens = lemm_text(tokens)
 
     return tokens
