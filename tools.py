@@ -29,8 +29,8 @@ def parse_fields(fields: list):
 
 def parse_query(query: str):
     """
-    Выделяет из запроса поля, определяя их тип (текст или заголовок) и
-    использование доп. функций
+    Выделяет из запроса поля, определяя их тип (текст или заголовок) и необходимость
+    использования доп. функций
     :param query:
     :return:
     """
@@ -164,7 +164,9 @@ def prepare_builder_input(docs: list, functions: list, mask: list, config: dict,
                 else:
                     title_content_optional += [text]
 
-        result.append(title_content_optionalt)
+        prepared_doc.append(title_content_optionalt)
+
+    result.append(prepared_doc)
 
     return result
 
