@@ -113,7 +113,7 @@ class IndexBuilder:
     #     self.corpus_texts += [self.dictionary.doc2bow(text) for text in lemmatize_texts]
     #     self.corpus_titles += [self.dictionary.doc2bow(title) for title in lemmatize_titles]
 
-        return True
+        # return True
 
     # async def update(self, docs: list, optional_fields: list, lang: dict):
     #     if not self.index_loaded:
