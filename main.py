@@ -7,13 +7,12 @@ import time
 import uvicorn
 
 from fastapi import FastAPI, Depends, HTTPException, Security
-#from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.security.api_key import APIKeyHeader, APIKey
 
 from services import *
-
 
 api_key_header = APIKeyHeader(name='APP-KEY', auto_error=True)
 
@@ -85,11 +84,11 @@ async def updconfig():
                 'detail': str(e)}
 
 
-@app.get('/answer')
-async def answer(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = Depends(get_api_key)):
+@app.get('/search')
+async def search(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = Depends(get_api_key)):
     if seachers[site_id] is not None:
         try:
-            results, size = await get_answer(q, seachers[site_id], configs[site_id], batch_size, batch_i)
+            results, size, right_q = await get_answer(q, seachers[site_id], configs[site_id], batch_size, batch_i)
         except Exception as e:
             return {'status': 'error',
                     'detail': str(e)}
@@ -97,9 +96,12 @@ async def answer(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = 
         return {'status': 'error',
                 'detail': f'seacher for site {configs[site_id]["APP"]} don\'t loaded'}
 
-    return {'status': 'ok',
-            'result': results,
-            'full_size': size}
+    out = {'status': 'ok',
+           'result': results,
+           'full_size': size}
+
+    if right_q != q:
+        out['right_q'] = right_q
 
 
 @app.get('/reloadindex')
@@ -169,7 +171,7 @@ async def build(batch_size: int = 100, act: str = 'add', timestamp: int = 0, tab
 
 @app.get('/removeindex')
 async def remove_index(site_id: int = Depends(get_api_key)):
-    shutil.rmtree('index/'+configs[site_id]['APP'], ignore_errors=True)
+    shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
 
     # создание директории для индекса
     path = 'index/' + configs[site_id]['APP']
@@ -186,5 +188,3 @@ async def remove_index(site_id: int = Depends(get_api_key)):
 @app.get('/')
 async def root():
     return {'message': 'Hello World'}
-
-

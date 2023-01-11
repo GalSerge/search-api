@@ -69,7 +69,7 @@ def get_builder(config: dict):
     return builder
 
 
-async def get_db_connections(configs):
+async def get_db_connections(configs: list):
     connections = []
 
     for config in configs:
@@ -86,8 +86,8 @@ async def get_db_connections(configs):
     return connections
 
 
-async def get_answer(q: str, seacher, config, batch_size: int, batch_i: int):
-    distances, docs, size = await seacher.answer(q, config['LANGUAGES'], batch_size, batch_i)
+async def get_answer(q: str, seacher: Seacher, config: dict, batch_size: int, batch_i: int, table_id: int = 0):
+    distances, docs, size, right_query = await seacher.answer(q, config['LANGUAGES'], batch_size, batch_i, table_id)
     results = []
 
     for i in range(len(distances)):
@@ -99,7 +99,7 @@ async def get_answer(q: str, seacher, config, batch_size: int, batch_i: int):
         if docs[i][3] is not None:
             results[i]['optional'] = json.loads(docs[i][3])
 
-    return results, size
+    return results, size, right_query
 
 
 # async def edit_index_from_task(act: str, builder, config, db_conn, batch_size: int = 100):
@@ -212,7 +212,8 @@ async def get_answer(q: str, seacher, config, batch_size: int, batch_i: int):
 #     return True
 
 
-async def edit_index(builder, config, db_conn, batch_size: int = 100, timestamp: bool = False, table_id: int = -1):
+async def edit_index(builder: IndexBuilder, config: dict, db_conn, batch_size: int = 100, timestamp: bool = False,
+                     table_id: int = -1):
     """
     Добавляет записи в индекс и обновляет его непосредственно из таблиц
     :param builder: объект класса построителя индекса IndexBuilder

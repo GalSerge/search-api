@@ -2,6 +2,7 @@
 
 import nltk
 import re
+import torch
 
 from gensim import utils
 from nltk.corpus import stopwords
@@ -98,4 +99,63 @@ def preprocess_string(s: str) -> list:
     tokens = s.split()
     tokens = lemm_text(tokens)
 
-    return tokens
+    return ' '.join(tokens)
+
+
+LEN_SENT = 50
+CIRILL_TO_LATIN = {'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u', 'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']', 'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h', 'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': '\'', 'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.', 'ё': '`'}
+LATIN_TO_CIRILL= {value: key for key, value in CIRILL_TO_LATIN.items()}
+ALPHABET = {}
+symbols = list(LATIN_TO_CIRILL.keys()) + list(CIRILL_TO_LATIN.keys())
+for i, s in enumerate(symbols):
+    ALPHABET[s] = i
+
+
+def str_to_vector(s: str):
+    vector = []
+    other_idx = len(ALPHABET)
+    for sym in s:
+        if alphabet.get(sym):
+            vector.append(ALPHABET[sym])
+        else:
+            vector.append(other_idx)
+
+    return vector
+
+
+def correct_keyboard_layout(self, s: str):
+    """
+    текст на русском - 0
+    текст на английском - 1
+    текст на англ. в кирилл. раскладке - 2
+    текст на рус. в латинской раскладке - 3
+    :param self:
+    :param s:
+    :return:
+    """
+    s = s.lower()
+    vector = sent_to_vector(s)
+
+    if len(vector) < LEN_SENT:
+        vector += [66] * (LEN_SENT - len(x))
+    else:
+        vector = vector[:LEN_SENT]
+
+    y = model(torch.tensor(vector))
+    out = y[0].argmax()
+
+    result = ''
+    if out == 2:
+        for sym in s:
+            if CIRILL_TO_LATIN.get(sym):
+                result += CIRILL_TO_LATIN[sym]
+    elif out == 3:
+        for sym in s:
+            if LATIN_TO_CIRILL.get(sym):
+                result += LATIN_TO_CIRILL[sym]
+    else:
+        result = s
+
+    return result
+
+

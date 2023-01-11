@@ -44,7 +44,7 @@ class Seacher():
 
     async def load(self, path_prefix='index') -> bool:
         if os.path.exists(path_prefix) and os.path.isdir(path_prefix):
-            if not os.listdir(path_prefix+'/texts'):
+            if not os.listdir(path_prefix + '/texts'):
                 raise FileNotFoundError(f'Index directory \'{path_prefix}\' is empty')
         else:
             raise NotADirectoryError(f'Doesn\'t exist a directory \'{path_prefix}\'')
@@ -61,41 +61,42 @@ class Seacher():
 
         return True
 
-    async def answer(self, query: str, lang: dict, batch_size: int, batch_i: int) -> tuple:
+    async def answer(self, query: str, batch_size: int, batch_i: int, type: int = 0) -> tuple:
         if not self.index_loaded:
             raise Exception('Search unavailable. Index not loaded: сall load_index()')
 
-        # начало и конец среза поисковой выдачи
+        # начало поисковой выдачи
         begin = batch_i * batch_size
-        end = batch_i * batch_size + batch_size
 
         lemm_query = preprocess_string(query)
-        query_ = ' '.join(lemm_query)
-        # если в запросе есть латинские буквы, он обрабатывается как текст на английском
-        if contains_latin(query_):
-            lemm_query = preprocess_string(query_, lang='en')
+        hmean_distances = self.get_distances(lemm_query)
 
-        query_bow = self.dictionary.doc2bow(lemm_query)
-        # вычисление расстояний между запросом и текстами и их заголовками
-        texts_distances = self.index_texts[self.tf_idf_model_texts[query_bow]]
-        titles_distances = self.index_titles[self.tf_idf_model_titles[query_bow]]
+        # если нет результатов, проверяется раскладка
+        if np.count_nonzero(hmean_distances, axis=1)[0] == 0:
+            query = correct_keyboard_layout(query)
+            # если раскладка исправлена, снова вычисляется расстояние
+            if query != lemm_query:
+                right_query = query
+                lemm_query = preprocess_string(query)
+                hmean_distances = self.get_distances(lemm_query)
 
-        # sorted_texts_distances_id = texts_distances.argsort()[::-1]
-        # nonzero_texts_distances = np.nonzero(texts_distances)[0]
-        #
-        # sorted_titles_distances_id = titles_distances.argsort()[::-1]
-        # nonzero_titles_distances = np.nonzero(titles_distances)[0]
+        coefs = self.get_coefs()
+        hmean_distances = hmean_distances * coefs
 
-        # удаление из sorted_X_distances_id id c нулевым расстоянием
-        # texts_relevant_id = sorted_texts_distances_id[np.in1d(sorted_texts_distances_id, nonzero_texts_distances)][:30]
-        # titles_relevant_id = sorted_titles_distances_id[np.in1d(sorted_titles_distances_id,
-        #                                                         nonzero_titles_distances)][:30]
-
-        hmean_distances = self.beta_hmean(titles_distances, texts_distances)
         sorted_distances_id = hmean_distances.argsort()[::-1]
         nonzero_distances = np.nonzero(hmean_distances)[0]
-        # id ненулевых расстояний в порядке убывания расстояний
-        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)][begin:end]
+        # id ненулевых расстояний в порядке убывания их величины
+        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)]
+
+        query_params = {
+            'relevant_id': ', '.join(map(str, relevant_id + 1)),
+            'batch_size': batch_size,
+            'begin': begin
+        }
+        if type != 0:
+            query_params['type_cond'] = 'AND `type` = ' + type
+        else:
+            query_params['type_cond'] = ''
 
         # запрос на получение сведений о релевантных документах в порядке их релевантности
         query = '''
@@ -103,14 +104,17 @@ class Seacher():
                 FROM (SELECT docs.*, ROW_NUMBER() OVER (ORDER BY docs.id) AS `order`
                 FROM docs)
                 WHERE `order` IN ({relevant_id})
-                ORDER BY INSTR('{relevant_id}', `order`)'''.format(relevant_id=', '.join(map(str, relevant_id + 1)))
+                {type_cond}
+                ORDER BY INSTR('{relevant_id}', `order`)
+                LIMIT {batch_size} OFFSET {begin}}'''.format(**query_params)
 
         results = self.connection.execute(query)
         results = results.fetchall()
 
-        return hmean_distances[relevant_id], results, len(nonzero_distances)
+        return hmean_distances[relevant_id], results, len(nonzero_distances), query
 
-    def beta_hmean(self, a, b):
+    @staticmethod
+    def beta_hmean(a, b):
         """
         Вычисляет среднее гармоническое, отдавая приоритет значениям из массива a
         :param a: numpy.ndarray
@@ -133,3 +137,20 @@ class Seacher():
     async def stop(self):
         self.connection.close()
         self.engine.dispose()
+
+    async def get_coefs(self):
+        query = 'SELECT `coef` FROM docs'
+        results = self.connection.execute(query)
+        results = results.fetchall()
+
+        return np.array(results)
+
+    async def get_distances(self, lemm_query):
+        query_bow = self.dictionary.doc2bow(lemm_query)
+        # вычисление расстояний между запросом и текстами и их заголовками
+        texts_distances = self.index_texts[self.tf_idf_model_texts[query_bow]]
+        titles_distances = self.index_titles[self.tf_idf_model_titles[query_bow]]
+
+        hmean_distances = self.beta_hmean(titles_distances, texts_distances)
+
+        return hmean_distances

@@ -179,6 +179,7 @@ class IndexBuilder:
             for field_i, field in enumerate(optional_fields):
                 optional[field] = doc[field_i + 7]
 
+            # если doc_id = -1, значит, получен новый документ, и он просто добавляется
             if doc_id >= 0:
                 self.corpus_titles[doc_id] = self.dictionary.doc2bow(lemmas_title)
                 self.corpus_texts[doc_id] = self.dictionary.doc2bow(lemmas_text)
