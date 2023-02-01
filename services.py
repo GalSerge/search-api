@@ -212,7 +212,7 @@ async def get_answer(q: str, seacher: Seacher, batch_size: int, batch_i: int, ta
 #     return True
 
 
-async def edit_index(builder: IndexBuilder, config: dict, db_conn, batch_size: int = 100, timestamp: bool = False,
+async def edit_index(builder: IndexBuilder, config: dict, db_conn, batch_size: int, timestamp: bool = False,
                      table_id: int = -1):
     """
     Добавляет записи в индекс и обновляет его непосредственно из таблиц
