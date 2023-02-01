@@ -61,7 +61,7 @@ class Seacher():
 
         return True
 
-    async def answer(self, query: str, batch_size: int, batch_i: int, type: int = 0) -> tuple:
+    async def answer(self, query: str, batch_size: int, batch_i: int, type: int = -1) -> tuple:
         if not self.index_loaded:
             raise Exception('Search unavailable. Index not loaded: сall load_index()')
 
@@ -93,7 +93,8 @@ class Seacher():
             'batch_size': batch_size,
             'begin': begin
         }
-        if type != 0:
+
+        if type != -1:
             query_params['type_cond'] = 'AND `type` = ' + type
         else:
             query_params['type_cond'] = ''

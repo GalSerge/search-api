@@ -86,8 +86,8 @@ async def get_db_connections(configs: list):
     return connections
 
 
-async def get_answer(q: str, seacher: Seacher, config: dict, batch_size: int, batch_i: int, table_id: int = 0):
-    distances, docs, size, right_query = await seacher.answer(q, config['LANGUAGES'], batch_size, batch_i, table_id)
+async def get_answer(q: str, seacher: Seacher, batch_size: int, batch_i: int, table_id: int):
+    distances, docs, size, right_query = await seacher.answer(q, batch_size, batch_i, table_id)
     results = []
 
     for i in range(len(distances)):
