@@ -10,33 +10,34 @@ import databases
 from queries import *
 
 
-async def update_configs():
-    with open('config.json', 'r') as f:
-        configs = json.load(f)
+async def active_config(app_name):
+    config_path = 'configs/' + app_name + '.json'
+    with open(config_path, 'r') as f:
+        config = json.load(f)
 
-    for i, site in enumerate(configs):
-        # генерация ключа для соединения с приложением
-        if site['APP_KEY'] == '':
-            configs[i]['APP_KEY'] = ''.join(
-                secrets.choice(string.ascii_uppercase + string.ascii_lowercase) for i in range(40))
+    if config['APP_KEY'] == '':
+        config['APP_KEY'] = ''.join(
+            secrets.choice(string.ascii_uppercase + string.ascii_lowercase) for i in range(40))
 
-        # создание директории для индекса
-        path = 'index/' + site['APP']
-        if not os.path.exists(path):
-            os.mkdir(path)
-            os.mkdir(path + '/titles')
-            os.mkdir(path + '/texts')
+    # создание директории для индекса
+    path = 'index/' + config['APP']
+    if not os.path.exists(path):
+        os.mkdir(path)
+        os.mkdir(path + '/titles')
+        os.mkdir(path + '/texts')
 
-        # проверка соединения с базой
-        # connection = await databases.Database('{driver}://{username}:{password}@{host}:{port}/{database}'
-        #                                 .format(**site['DB_CONNECT'])).connect()
-        # connection.disconnect()
-        # engine = create_engine('{driver}://{username}:{password}@{host}:{port}/{database}'.format(**site['DB_CONNECT']))
-        # connection = await engine.connect()
-        # engine.dispose()
+    # проверка соединения с базой
+    if config['DB_CONNECT']['port'] != '':
+        connection_path = '{driver}://{username}:{password}@{host}:{port}/{database}'.format(**config['DB_CONNECT'])
+    else:
+        connection_path = '{driver}://{username}:{password}@{host}/{database}'.format(**config['DB_CONNECT'])
 
-    with open('config.json', 'w') as f:
-        f.write(json.dumps(configs, indent=2))
+    connection = databases.Database(connection_path)
+    await connection.connect()
+    await connection.disconnect()
+
+    with open(config_path, 'w') as f:
+        f.write(json.dumps(config, indent=2))
 
 
 async def get_configs():

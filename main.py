@@ -75,14 +75,14 @@ async def startup():
 
 
 @app.get('/updconfig')
-async def updconfig():
+async def updconfig(app_name: str):
     try:
-        await update_configs()
+        await active_config(app_name)
         return {'status': 'ok'}
     except Exception as e:
         return {'status': 'error',
                 'detail': str(e)}
-
+    
 
 @app.get('/search')
 async def search(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = Depends(get_api_key)):
@@ -127,46 +127,23 @@ async def shutdown():
 
 
 @app.get('/build')
-async def build(batch_size: int = 100, act: str = 'add', timestamp: int = 0, tab: int = None,
+async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
                 site_id: int = Depends(get_api_key)):
-    actions = ['all', 'upd', 'add', 'del']
-
     try:
         builder = get_builder(configs[site_id])
     except Exception as e:
         return {'status': 'error',
-                'detail': f'Could\'t load IndexBuilder: {str(e)}'}
-
-    if act not in actions:
-        return {'status': 'error',
-                'detail': f'act={act} is invalid'}
+                'detail': f'{configs[site_id]["APP"]}: could\'t load IndexBuilder: {str(e)}'}
 
     if not connections[site_id]:
         return {'status': 'error',
-                'detail': f'no db connection'}
+                'detail': f'{configs[site_id]["APP"]}: no db connection'}
 
-    if act == 'all':
-        pass
-    elif act == 'add':
-        if configs[site_id]['TASKS_TABLE'] == '':
-            await edit_index(act, builder, configs[site_id], connections[site_id])
-        else:
-            await edit_index_from_task(act, builder, configs[site_id], connections[site_id])
-    elif act == 'upd':
-        if configs[site_id]['TASKS_TABLE'] == '':
-            await edit_index(act, builder, configs[site_id], connections[site_id])
-        else:
-            await edit_index_from_task(act, builder, configs[site_id], connections[site_id])
-    elif act == 'del':
-        if configs[site_id]['TASKS_TABLE'] == '':
-            await delete_index(builder, configs[site_id], tab)
-        else:
-            await delete_index_from_task(builder, configs[site_id], connections[site_id])
-
+    await edit_index_from_task(builder, configs[site_id], connections[site_id], batch_size, timestamp, table_id)
     await builder.stop()
 
     return {'status': 'ok',
-            'detail': f'Index successful edit. Call /reloadindex'}
+            'detail': f'{configs[site_id]["APP"]}: index successful edit. Call /reloadindex'}
 
 
 @app.get('/removeindex')
