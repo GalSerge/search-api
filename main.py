@@ -70,8 +70,14 @@ async def startup():
     global connections
 
     configs = await get_configs()
+    if len(configs) > 0:
+        print(f'configs ({len(configs)}) uploaded successfully')
     seachers = await get_seachers(configs)
+    if len(seachers) > 0:
+        print(f'seachers ({len(configs)}) uploaded successfully')
     connections = await get_db_connections(configs)
+    if len(connections) > 0:
+        print(f'connections ({len(connections)}) completed successfully')
 
 
 @app.get('/updconfig')
@@ -82,7 +88,7 @@ async def updconfig(app_name: str):
     except Exception as e:
         return {'status': 'error',
                 'detail': str(e)}
-    
+
 
 @app.get('/search')
 async def search(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = Depends(get_api_key)):

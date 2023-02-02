@@ -54,9 +54,9 @@ async def get_configs():
 
 
 async def get_seachers(configs: list):
-    seachers = []
+    seachers = dict()
 
-    for config in configs:
+    for _, config in configs.items():
         if config['APP_KEY'] == '':
             continue
 
@@ -66,7 +66,7 @@ async def get_seachers(configs: list):
         except FileNotFoundError:
             seacher = None
 
-        seachers.append(seacher)
+        seachers[config['APP_ID']] = seacher
 
     return seachers
 
@@ -78,18 +78,23 @@ def get_builder(config: dict):
 
 
 async def get_db_connections(configs: list):
-    connections = []
+    connections = dict()
 
-    for config in configs:
+    for _, config in configs.items():
         try:
-            connection = databases.Database('{driver}://{username}:{password}@{host}/{database}'
-                                            .format(**config['DB_CONNECT']))
+            if config['DB_CONNECT']['port'] != '':
+                connection_path = '{driver}://{username}:{password}@{host}:{port}/{database}'.format(
+                    **config['DB_CONNECT'])
+            else:
+                connection_path = '{driver}://{username}:{password}@{host}/{database}'.format(**config['DB_CONNECT'])
+
+            connection = databases.Database(connection_path)
             await connection.connect()
         except Exception as e:
             print(e)
             connection = None
 
-        connections.append(connection)
+        connections[config['APP_ID']] = connection
 
     return connections
 
