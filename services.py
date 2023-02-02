@@ -41,8 +41,15 @@ async def active_config(app_name):
 
 
 async def get_configs():
-    with open('config.json', 'r') as f:
-        configs = json.load(f)
+    configs = dict()
+    configs_files = [f.name for f in os.scandir('configs')]
+    for config in configs_files:
+        try:
+            with open('configs/' + config, 'r') as f:
+                config = json.load(f)
+                configs[config['APP_ID']] = config
+        except Exception as e:
+            print(e)
     return configs
 
 
