@@ -54,11 +54,14 @@ class IndexBuilder:
             if not os.listdir(path_prefix):
                 raise FileNotFoundError(f'Index directory \'{path_prefix}\' is empty')
 
-        self.dictionary = Dictionary.load(path_prefix + '/dictionary.dict')
-        self.corpus_texts = list(MmCorpus(path_prefix + '/texts/corpus.mm'))
-        self.corpus_titles = list(MmCorpus(path_prefix + '/titles/corpus.mm'))
+        try:
+            self.dictionary = Dictionary.load(path_prefix + '/dictionary.dict')
+            self.corpus_texts = list(MmCorpus(path_prefix + '/texts/corpus.mm'))
+            self.corpus_titles = list(MmCorpus(path_prefix + '/titles/corpus.mm'))
 
-        self.index_loaded = True
+            self.index_loaded = True
+        except Exception as e:
+            self.index_loaded = False
 
     async def save(self, path_prefix='index'):
         # отдельно сохраняется индекс текстов
@@ -81,72 +84,6 @@ class IndexBuilder:
 
         self.session.commit()
 
-    # async def add(self, docs: list, optional_fields: list, lang: dict):
-    #     lemmatize_texts = []
-    #     lemmatize_titles = []
-    #     for doc in docs:
-    #         lemmas = preprocess_string(s=doc[4], lang=lang[str(doc[2])])
-    #         lemmatize_texts.append(lemmas)
-    #         lemmas = preprocess_string(s=doc[3], lang=lang[str(doc[2])])
-    #         lemmatize_titles.append(lemmas)
-    #
-    #         _doc = {
-    #             'type': doc[0],
-    #             'doc_id': doc[1],
-    #             'lang_id': doc[2],
-    #         }
-    #
-    #         # дополнительные данные о документах в корпусе
-    #         optional = dict()
-    #         for field_i, field in enumerate(optional_fields):
-    #             optional[field] = doc[field_i + 5]
-    #
-    #         if optional:
-    #             _doc['optional'] = json.dumps(optional)
-    #
-    #         query_insert = sql.insert(self.docs_table, values=_doc)
-    #         self.session.execute(query_insert)
-    #
-    #     self.dictionary.add_documents(lemmatize_texts)
-    #     self.dictionary.add_documents(lemmatize_titles)
-    #
-    #     self.corpus_texts += [self.dictionary.doc2bow(text) for text in lemmatize_texts]
-    #     self.corpus_titles += [self.dictionary.doc2bow(title) for title in lemmatize_titles]
-
-        # return True
-
-    # async def update(self, docs: list, optional_fields: list, lang: dict):
-    #     if not self.index_loaded:
-    #         raise Exception('Nothing update. Index not loaded: call load()')
-    #
-    #     for input_doc in docs:
-    #         # получение порядкового номера документа в корпусе
-    #         doc_order = self.get_doc_order(input_doc) - 1
-    #
-    #         if doc_order >= 0:
-    #             lemmas_title = preprocess_string(s=input_doc[3], lang=lang[str(input_doc[2])])
-    #             lemmas_text = preprocess_string(s=input_doc[4], lang=lang[str(input_doc[2])])
-    #
-    #             self.dictionary.add_documents([lemmas_title])
-    #             self.dictionary.add_documents([lemmas_text])
-    #
-    #             self.corpus_titles[doc_order] = self.dictionary.doc2bow(lemmas_title)
-    #             self.corpus_texts[doc_order] = self.dictionary.doc2bow(lemmas_text)
-    #
-    #             # обновление дополнительных данных о документах в корпусе
-    #             optional = dict()
-    #             for field_i, field in enumerate(optional_fields):
-    #                 optional[field] = input_doc[field_i + 5]
-    #
-    #             if optional:
-    #                 query_update = sql.update(self.docs_table, values={'optional': json.dumps(optional)}). \
-    #                     where(sql.and_(self.docs_table.c.type == input_doc[0],
-    #                                    self.docs_table.c.doc_id == input_doc[1],
-    #                                    self.docs_table.c.lang_id == input_doc[2]))
-    #                 self.session.execute(query_update)
-    #
-    #     return True
-
     async def update(self, docs: list, optional_fields: list, lang: dict):
         """
         [type, doc_id, lang_id, act, coef, title, text, optional]
@@ -161,7 +98,7 @@ class IndexBuilder:
 
             if input_doc[3] == 'del':
                 if doc_id >= 0:
-                    self.delete(input_doc, doc_id)
+                    await self.delete(input_doc, doc_id)
                 continue
 
             lemmas_title = preprocess_string(s=input_doc[5], lang=lang[str(input_doc[2])])
@@ -174,10 +111,10 @@ class IndexBuilder:
             optional = dict()
             # если доп. поля получены, но список полей пуст, он формируется далее
             if len(optional_fields) == 0:
-                optional_fields = ['field_' + str(i) for i in range(len(doc) - 7)]
+                optional_fields = ['field_' + str(i) for i in range(len(input_doc) - 7)]
 
             for field_i, field in enumerate(optional_fields):
-                optional[field] = doc[field_i + 7]
+                optional[field] = input_doc[field_i + 7]
 
             # если doc_id = -1, значит, получен новый документ, и он просто добавляется
             if doc_id >= 0:
@@ -223,27 +160,6 @@ class IndexBuilder:
 
         return True
 
-    # async def delete(self, docs: list):
-    #     if not self.index_loaded:
-    #         raise Exception('Nothing delete. Index not loaded: call load()')
-    #
-    #     for input_doc in docs:
-    #         # получение порядкового номера документа в корпусе
-    #         doc_order = self.get_doc_order(input_doc) - 1
-    #
-    #         if doc_order >= 0:
-    #             query_delete = sql.delete(self.docs_table). \
-    #                 where(sql.and_(self.docs_table.c.type == input_doc[0],
-    #                                self.docs_table.c.doc_id == input_doc[1],
-    #                                self.docs_table.c.lang_id == input_doc[2]))
-    #
-    #             self.session.execute(query_delete)
-    #
-    #             self.corpus_texts.pop(doc_order)
-    #             self.corpus_titles.pop(doc_order)
-    #
-    #     return True
-
     async def delete_by_type(self, type_: int):
         if not self.index_loaded:
             raise Exception('Nothing delete. Index not loaded: call load_index()')
@@ -284,16 +200,16 @@ class IndexBuilder:
         else:
             return -1
 
-    async def clean_docs(self):
-        """
-        Очищает таблицу с информацией о документах.
-        Требуется вызвать перед добавлением нового индекса.
-        :return:
-        """
-        query = sql.delete(self.docs_table)
-        self.session.execute(query)
-        self.session.commit()
-
+    # async def clean_docs(self):
+    #     """
+    #     Очищает таблицу с информацией о документах.
+    #     Требуется вызвать перед добавлением нового индекса.
+    #     :return:
+    #     """
+    #     query = sql.delete(self.docs_table)
+    #     self.session.execute(query)
+    #     self.session.commit()
+    #
     async def stop(self):
         self.session.close()
         self.engine.dispose()

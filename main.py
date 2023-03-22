@@ -83,8 +83,11 @@ async def startup():
 @app.get('/updconfig')
 async def updconfig(app_name: str):
     try:
-        await active_config(app_name)
-        return {'status': 'ok'}
+        statuses = await active_config(app_name)
+        detail = 'Queries test results:\n'
+        for t, status in statuses.items():
+            detail += f'Table {t}: {str(status)} \n'
+        return {'status': 'ok', 'detail': detail}
     except Exception as e:
         return {'status': 'error',
                 'detail': str(e)}
@@ -110,17 +113,17 @@ async def search(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = 
         out['right_q'] = right_q
 
 
-@app.get('/reloadindex')
-async def reload_index(site_id: int = Depends(get_api_key)):
-    try:
-        seachers[site_id] = Seacher('index/' + configs[site_id]['APP'])
-        await seachers[site_id].load('index/' + configs[site_id]['APP'])
-    except Exception as e:
-        return {'status': 'error',
-                'detail': f'{configs[site_id]["APP"]}: {str(e)}'}
-
-    return {'status': 'ok',
-            'detail': f'{configs[site_id]["APP"]}: index successful reloaded'}
+# @app.get('/reloadindex')
+# async def reload_index(site_id: int = Depends(get_api_key)):
+#     try:
+#         seachers[site_id] = Seacher('index/' + configs[site_id]['APP'])
+#         await seachers[site_id].load('index/' + configs[site_id]['APP'])
+#     except Exception as e:
+#         return {'status': 'error',
+#                 'detail': f'{configs[site_id]["APP"]}: {str(e)}'}
+#
+#     return {'status': 'ok',
+#             'detail': f'{configs[site_id]["APP"]}: index successful reloaded'}
 
 
 @app.on_event('shutdown')
@@ -145,27 +148,27 @@ async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
         return {'status': 'error',
                 'detail': f'{configs[site_id]["APP"]}: no db connection'}
 
-    await edit_index_from_task(builder, configs[site_id], connections[site_id], batch_size, timestamp, table_id)
+    await edit_index(builder, configs[site_id], connections[site_id], batch_size, timestamp, table_id)
     await builder.stop()
 
     return {'status': 'ok',
             'detail': f'{configs[site_id]["APP"]}: index successful edit. Call /reloadindex'}
 
 
-@app.get('/removeindex')
-async def remove_index(site_id: int = Depends(get_api_key)):
-    shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
-
-    # создание директории для индекса
-    path = 'index/' + configs[site_id]['APP']
-    os.mkdir(path)
-    os.mkdir(path + '/titles')
-    os.mkdir(path + '/texts')
-
-    seachers[site_id] = None
-
-    return {'status': 'ok',
-            'detail': f'{configs[site_id]["APP"]}: index successful remove'}
+# @app.get('/removeindex')
+# async def remove_index(site_id: int = Depends(get_api_key)):
+#     shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
+#
+#     # создание директории для индекса
+#     path = 'index/' + configs[site_id]['APP']
+#     os.mkdir(path)
+#     os.mkdir(path + '/titles')
+#     os.mkdir(path + '/texts')
+#
+#     seachers[site_id] = None
+#
+#     return {'status': 'ok',
+#             'detail': f'{configs[site_id]["APP"]}: index successful remove'}
 
 
 @app.get('/')

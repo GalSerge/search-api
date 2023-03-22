@@ -1,5 +1,6 @@
 import re
 import queries
+import functions as F
 
 
 def parse_fields(fields: list):
@@ -19,7 +20,7 @@ def parse_fields(fields: list):
 
         # выделяем сами функции
         if funcs_str:
-            funcs_list = re.split(r';\s*', funcs_str.group(1))
+            funcs_list = re.split(r',\s*', funcs_str.group(1))
             functions.append(funcs_list)
         else:
             functions.append(None)
@@ -71,7 +72,7 @@ def prepare_fields(config: dict):
 
     for i, type_ in enumerate(fields_types):
         funcs, clean_fields = parse_fields(config['fields_' + type_])
-        fields[type_] = '' if len(clean_fields) == 0 else ', ' + ', `'.join(clean_fields) + '`'
+        fields[type_] = '' if len(clean_fields) == 0 else ', ' + ', '.join(clean_fields)
         functions += funcs
         mask += [i] * len(clean_fields)
 
@@ -86,6 +87,8 @@ def get_select_query(config: dict, timestamp: bool = False, every_day: str = '')
     :param every_day:
     :return:
     """
+    where_cond = ''
+
     if config.get('queries'):
         query, functions, mask = parse_query(config['queries']['select'])
     else:
@@ -95,32 +98,37 @@ def get_select_query(config: dict, timestamp: bool = False, every_day: str = '')
             **config,
             **fields)
 
-    if timestamp and every_day and config['field_timestamp'] != '':
+    if timestamp and every_day != '' and config['field_timestamp'] != '':
         where_cond = queries.where_timestamp.format(
             field_timestamp=config['field_timestamp'],
             every_day=every_day
         )
 
-        query, success = re.subn(r'where:{{.+?}}', where_cond, query)
-        if not success:
-            query += ' WHERE ' + where_cond
-    else:
-        query, success = re.subn(r'where:{{.+?}}', '', query)
+    if config['field_active'] != '':
+        active_cond = queries.where_active.format(**config)
 
+        if where_cond == '':
+            where_cond = active_cond
+        else:
+            where_cond += ' AND ' + active_cond
+
+    if where_cond != '':
+        query += ' WHERE ' + where_cond
     query += queries.limit
 
     return query, functions, mask
 
 
-def get_select_task_query(config: dict):
+def get_select_task_query(config: dict, task_table):
     """
     Формирует запрос на извлечение данных из таблицы задания
+    :param task_table:
     :param config:
     :return:
     """
     fields, functions, mask = prepare_fields(config)
 
-    query = queries.select_task.format(**config, **fields)
+    query = queries.select_task.format(**config, **fields, task_table=task_table)
     query += queries.limit
 
     return query, functions, mask
@@ -139,6 +147,7 @@ def prepare_builder_input(docs: list, functions: list, mask: list, config: dict,
     result = []
 
     for doc in docs:
+        doc = list(doc)
         prepared_doc = []
         prepared_doc += doc[:3]
 
@@ -147,48 +156,27 @@ def prepare_builder_input(docs: list, functions: list, mask: list, config: dict,
             prepared_doc += doc[3:5]
         elif doc[3] == config['active_value']:
             prepared_doc += ['add', 0]
+            doc.insert(4, '')
         else:
             prepared_doc += ['del']
+            result.append(prepared_doc)
+            continue
 
         title_content_optional = ['', '']
 
         # маска указывает на тип поля: заголовок, контент или доп. поле
         for i in range(len(mask)):
+            text = doc[5 + i]
             if functions[i] is not None:
-                text = doc[4+i]
                 for f in functions[i]:
-                    text = eval('f(text)')
+                    text = eval(f'F.{f}(text)')
 
-                if mask[i] < 2:
-                    title_content_optional[mask[i]] += ' ' + text
-                else:
-                    title_content_optional += [text]
+            if mask[i] < 2:
+                title_content_optional[mask[i]] += ' ' + text
+            else:
+                title_content_optional += [text]
 
-        prepared_doc.append(title_content_optionalt)
-
-    result.append(prepared_doc)
+        prepared_doc += title_content_optional
+        result.append(prepared_doc)
 
     return result
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

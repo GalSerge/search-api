@@ -1,29 +1,19 @@
-query_select_on_time = 'SELECT {table_id}, {field_id}, {lang}, ' \
-                           '{title}, {content} ' \
-                           'FROM {table_name} ' \
-                           'WHERE {field_update} > NOW() - INTERVAL {every} DAY AND ' \
-                           '{min_id} <= id AND id < {max_id} '
+select = 'SELECT {table_id}, {field_id}, {field_lang}, {field_active} ' \
+         '{title} {content} {optional} ' \
+         'FROM {table_name} ' \
 
-query_select = 'SELECT {table_id}, {field_id}, {lang}, ' \
-               '{title}, {content} ' \
-               'FROM {table_name} ' \
-               'WHERE {min_id} <= id AND id < {max_id} '
+select_task = 'SELECT {table_id}, {table_name}.{field_id}, {table_name}.{field_lang}, _task_table.act, _task_table.coef {title} {content} {optional} ' \
+              'FROM {table_name} ' \
+              'INNER JOIN ' \
+              '(SELECT * FROM {task_table} ' \
+              'WHERE table_id={table_id}) AS _task_table ' \
+              'ON _task_table.field_id={table_name}.{field_id} AND ' \
+              '_task_table.lang_id={table_name}.{field_lang}'
 
-query_num_rows = 'SELECT `id` FROM {table_name} ORDER BY `id` DESC LIMIT 1'
+num_rows = 'SELECT COUNT(*) FROM {table_name}'
 
-query_select_from_task = 'SELECT {table_id}, {table_name}.{field_id}, {lang}, ' \
-                         '{title}, {content} {optional}  ' \
-                         'FROM {table_name} ' \
-                         'INNER JOIN ' \
-                         '(SELECT * FROM {tasks_table} ' \
-                         'WHERE table_id={table_id} AND ' \
-                         '{min_id} <= id AND id < {max_id} AND ' \
-                         'act=\'{act}\') AS `tasks_table_` ' \
-                         'ON tasks_table_.field_id={table_name}.{field_id} AND ' \
-                         'tasks_table_.lang_id={table_name}.{field_lang}'
+where_timestamp = ' {field_timestamp} >= (NOW() - INTERVAL {every_day} DAY) '
 
-query_select_task = 'SELECT `table_id`, `field_id`, `lang_id`, `act`, `coef` FROM {tasks_table} ' \
-                    'WHERE {min_id} <= id AND id < {max_id} AND ' \
-                    'act=\'{act}\' '
+where_active = ' {field_active} = {active_value} '
 
-query_delete_task = 'DELETE FROM {tasks_table} WHERE `act`={act}'
+limit = ' LIMIT {batch_size} OFFSET {start} '

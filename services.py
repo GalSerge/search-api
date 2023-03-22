@@ -7,8 +7,19 @@ from asusearch.search import Seacher
 from asusearch.index import IndexBuilder
 
 import databases
-from queries import *
+from tools import *
 
+def get_query(config: dict, task_table: str, every_day: str):
+    if config['from_task']:
+        select, functions, mask = get_select_task_query(config, task_table)
+    else:
+        select, functions, mask = get_select_query(config, False, every_day)
+
+    query = select.format(
+        batch_size=10,
+        start=0)
+
+    return query
 
 async def active_config(app_name):
     config_path = 'configs/' + app_name + '.json'
@@ -34,10 +45,29 @@ async def active_config(app_name):
 
     connection = databases.Database(connection_path)
     await connection.connect()
+
+    statuses = {}
+    for t in config['TABLES']:
+        result = []
+        query = ''
+        error = 'error: '
+        try:
+            query = get_query(t, config['TASK_TABLE'], config['INDEX_EVERY_DAY'])
+            result = await connection.fetch_all(query=query)
+        except Exception as e:
+            error += str(e)
+
+        if (result is not None and len(result) > 0):
+            statuses[t['table_id']] = 'ok'
+        else:
+            statuses[t['table_id']] = f'{error} "{query}"'
+
     await connection.disconnect()
 
     with open(config_path, 'w') as f:
         f.write(json.dumps(config, indent=2))
+
+    return statuses
 
 
 async def get_configs():
@@ -245,77 +275,53 @@ async def edit_index(builder: IndexBuilder, config: dict, db_conn, batch_size: i
         if table_id != -1 and t['table_id'] != table_id:
             continue
 
-        if t['from_task'] == 1:
-            select, functions, mask = get_select_task_query(t)
+        if t['from_task']:
+            select, functions, mask = get_select_task_query(t, config['TASK_TABLE'])
         else:
             select, functions, mask = get_select_query(t, timestamp, config['INDEX_EVERY_DAY'])
 
+        batch = 0
         while True:
             query = select.format(
                 batch_size=batch_size,
-                start=batch + batch_size)
+                start=batch * batch_size)
 
             result = await db_conn.fetch_all(query=query)
-
             if len(result) == 0:
                 break
 
             result = prepare_builder_input(result, functions, mask, t, bool(t['from_task']))
             await builder.update(result, t['fields_optional'], config['LANGUAGES'])
 
+            batch += 1
+
     await builder.save(index_path)
 
     return True
 
 
-# async def delete_index_from_task(builder, config, db_conn, batch_size: int = 100):
+# async def delete_index(builder, config, tables: list = []):
 #     index_path = 'index/' + config['APP']
-#     query = 'SELECT `id` FROM {tasks_table} ORDER BY `id` DESC LIMIT 1'.format(tasks_table=config['TASKS_TABLE'])
-#     num_rows = await db_conn.fetch_one(query=query)
-#     num_rows = num_rows[0]
 #
-#     await builder.load(index_path)
+#     builder.load(index_path)
 #
-#     for batch in range(0, num_rows, batch_size):
-#         query = query_select_task.format(
-#             tasks_table=config['TASKS_TABLE'],
-#             min_id=batch,
-#             max_id=batch + batch_size,
-#             act='del'
-#         )
+#     # если не передан список таблиц на удаление,
+#     # то очищаются все таблицы
+#     if not tables or len(tables) == 0:
+#         tables = config['TABLES']
 #
-#         result = await db_conn.fetch_all(query=query)
-#
-#         if result:
-#             await builder.delete(result)
+#     for t in enumerate(tables):
+#         await builder.delete_by_type(t['table_id'])
 #
 #     await builder.save(index_path)
 #
 #     return True
-
-
-async def delete_index(builder, config, tables: list = []):
-    index_path = 'index/' + config['APP']
-
-    builder.load(index_path)
-
-    # если не передан список таблиц на удаление,
-    # то очищаются все таблицы
-    if not tables or len(tables) == 0:
-        tables = config['TABLES']
-
-    for t in enumerate(tables):
-        await builder.delete_by_type(t['table_id'])
-
-    await builder.save(index_path)
-
-    return True
-
-
-async def delete_from_task(act: str, config, db_conn):
-    query_delete_task.format(
-        act=act,
-        tasks_table=config['TASKS_TABLE']
-    )
-
-    await db_conn.fetch_all(query=query)
+#
+#
+# async def delete_from_task(act: str, config, db_conn):
+#     query_delete_task.format(
+#         act=act,
+#         task_table=config['TASK_TABLE']
+#     )
+#
+#     await db_conn.fetch_all(query=query)
