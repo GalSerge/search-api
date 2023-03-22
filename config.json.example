@@ -1,22 +1,25 @@
 [
   {
     "APP": "",
+    "APP_ID": "",
     "APP_KEY": "",
-    "DB_DRIVER": "",
-    "DB_HOST": "",
-    "DB_PORT": "",
-    "DB_NAME": "",
-    "DB_USER": "",
-    "DB_PASSWORD": "",
-    "TASKS_TABLE": "",
+    "DB_CONNECT": {
+      "driver": "",
+      "host": "",
+      "port": "",
+      "database": "",
+      "username": "",
+      "password": ""
+    },
+    "TASK_TABLE": "",
     "TABLES": [
       {
         "table_id": "",
-        // Если используется индексирование через таблицу задания, установить параметр равным 1.
-        "from_task": 0,
-        "queries": [
-            "select": "SELECT [table_id], [field_id], [field_lang], [field_active], title:{{[field_title:{[function]}]}}, text:{{[field_text:{[function]}]}}, optional:{{[field_optional:{[function]}]}} FROM [table_name]"
-        ]
+        // Если используется индексирование через таблицу задания, установить параметр равным true.
+        "from_task": false,
+        "queries": {
+            "select": "SELECT [table_id], [field_id], [field_lang], [field_active], title:{{[field_title:{[function]}]}}, content:{{[field_text:{[function]}]}}, optional:{{[field_optional:{[function]}]}} FROM [table_name]"
+        }
         "field_timestamp": "",
 
         "field_active": "",

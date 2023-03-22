@@ -1,0 +1,83 @@
+{
+  "APP": "kaspy.asu.edu.ru",
+  "APP_ID": 1,
+  "APP_KEY": "EjvVoezAYOUQXiXYVuNAZGegRqmwePeJQGPbkpME",
+  "DB_CONNECT": {
+    "driver": "mysql",
+    "host": "192.168.100.138",
+    "port": "3306",
+    "database": "admin_kaspy_db",
+    "username": "seacher",
+    "password": "aM8OFAXc8x"
+  },
+  "TASK_TABLE": "",
+  "TABLES": [
+    {
+      "table_id": 0,
+      "from_task": false,
+      "field_timestamp": "created_at",
+      "field_active": "is_published",
+      "active_value": "1",
+      "table_name": "articles",
+      "field_id": "article_id",
+      "field_lang": "lang_id",
+      "fields_title": [
+        "title"
+      ],
+      "fields_content": [
+        "annotation",
+        "text"
+      ],
+      "fields_optional": []
+    },
+    {
+      "table_id": 1,
+      "from_task": false,
+      "queries": {
+        "select": "SELECT 1, author_id, lang_id, 1, title:{{surname, initials}}, content:{{surname, initials, academic_degree, post, university, city}} FROM authors"
+      },
+      "field_timestamp": "created_at",
+      "field_active": "",
+      "active_value": 1,
+      "table_name": "authors",
+      "field_id": "author_id",
+      "field_lang": "lang_id",
+      "fields_title": [
+        "surname",
+        "initials"
+      ],
+      "fields_content": [
+        "surname",
+        "initials",
+        "academic_degree",
+        "post",
+        "university",
+        "city"
+      ],
+      "fields_optional": []
+    },
+    {
+      "table_id": 2,
+      "from_task": false,
+      "field_timestamp": "created_at",
+      "field_active": "is_published",
+      "active_value": 1,
+      "table_name": "articles",
+      "field_id": "article_id",
+      "field_lang": "lang_id",
+      "field_update": "updated_at",
+      "fields_title": [
+        "keywords:{json_loads}"
+      ],
+      "fields_content": [
+        "keywords:{json_loads}"
+      ],
+      "fields_optional": []
+    }
+  ],
+  "LANGUAGES": {
+    "1": "ru",
+    "2": "en"
+  },
+  "INDEX_EVERY_DAY": 200
+}
