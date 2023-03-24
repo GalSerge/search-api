@@ -7,7 +7,6 @@ from gensim.corpora import Dictionary
 from gensim.models import TfidfModel
 from gensim.similarities import SparseMatrixSimilarity
 from asusearch.tools import preprocess_string
-from asusearch.tools import correct_keyboard_layout
 from asusearch.models import Corrector
 
 import sqlalchemy as sql
