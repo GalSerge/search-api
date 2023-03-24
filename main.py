@@ -53,11 +53,6 @@ app.add_middleware(
 app.add_middleware(HTTPSRedirectMiddleware)
 
 
-@app.get("/private")
-async def private(site_id: int = Depends(get_api_key)):
-    return "Welcome to the security test!"
-
-
 configs = []
 seachers = []
 connections = []
@@ -94,36 +89,16 @@ async def updconfig(app_name: str):
 
 
 @app.get('/search')
-async def search(q: str, batch_size: int = 30, batch_i: int = 0, site_id: int = Depends(get_api_key)):
+async def search(q: str, batch_size: int = 30, batch_i: int = 0, type: int = -1, site_id: int = 0):
     if seachers[site_id] is not None:
-        try:
-            results, size, right_q = await get_answer(q, seachers[site_id], configs[site_id], batch_size, batch_i)
-        except Exception as e:
-            return {'status': 'error',
-                    'detail': str(e)}
+        results, size, right_q = await get_answer(q, seachers[site_id], batch_size, batch_i, type)
     else:
         return {'status': 'error',
                 'detail': f'seacher for site {configs[site_id]["APP"]} don\'t loaded'}
 
-    out = {'status': 'ok',
-           'result': results,
-           'full_size': size}
+    out = {'status': 'ok', 'result': results, 'full_size': size, 'right_q': right_q}
 
-    if right_q != q:
-        out['right_q'] = right_q
-
-
-# @app.get('/reloadindex')
-# async def reload_index(site_id: int = Depends(get_api_key)):
-#     try:
-#         seachers[site_id] = Seacher('index/' + configs[site_id]['APP'])
-#         await seachers[site_id].load('index/' + configs[site_id]['APP'])
-#     except Exception as e:
-#         return {'status': 'error',
-#                 'detail': f'{configs[site_id]["APP"]}: {str(e)}'}
-#
-#     return {'status': 'ok',
-#             'detail': f'{configs[site_id]["APP"]}: index successful reloaded'}
+    return out
 
 
 @app.on_event('shutdown')
@@ -152,23 +127,37 @@ async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
     await builder.stop()
 
     return {'status': 'ok',
-            'detail': f'{configs[site_id]["APP"]}: index successful edit. Call /reloadindex'}
+            'detail': f'{configs[site_id]["APP"]}: index successful edit.'}
 
 
-# @app.get('/removeindex')
-# async def remove_index(site_id: int = Depends(get_api_key)):
-#     shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
-#
-#     # создание директории для индекса
-#     path = 'index/' + configs[site_id]['APP']
-#     os.mkdir(path)
-#     os.mkdir(path + '/titles')
-#     os.mkdir(path + '/texts')
-#
-#     seachers[site_id] = None
-#
-#     return {'status': 'ok',
-#             'detail': f'{configs[site_id]["APP"]}: index successful remove'}
+@app.get('/clear')
+async def clear_index(site_id: int = 0):
+    shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
+
+    # создание директории для индекса
+    path = 'index/' + configs[site_id]['APP']
+    os.mkdir(path)
+    os.mkdir(path + '/titles')
+    os.mkdir(path + '/texts')
+
+    seachers[site_id] = None
+
+    return {'status': 'ok',
+            'detail': f'{configs[site_id]["APP"]}: index successful cleared'}
+
+
+@app.get('/delete')
+async def delete(type: int = -1, site_id: int = 0):
+    try:
+        builder = get_builder(configs[site_id])
+        await delete_index(builder, configs[site_id], type)
+        await builder.stop()
+    except Exception as e:
+        return {'status': 'error',
+                'detail': f'{configs[site_id]["APP"]}: could\'t delete: {str(e)}'}
+
+    return {'status': 'ok',
+            'detail': f'{configs[site_id]["APP"]}: index successful delete'}
 
 
 @app.get('/')

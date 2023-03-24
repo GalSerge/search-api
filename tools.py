@@ -122,7 +122,6 @@ def get_select_query(config: dict, timestamp: bool = False, every_day: str = '')
 def get_select_task_query(config: dict, task_table):
     """
     Формирует запрос на извлечение данных из таблицы задания
-    :param task_table:
     :param config:
     :return:
     """
@@ -180,3 +179,16 @@ def prepare_builder_input(docs: list, functions: list, mask: list, config: dict,
         result.append(prepared_doc)
 
     return result
+
+
+def get_query(config: dict, task_table: str, every_day: str):
+    if config['from_task']:
+        select, functions, mask = get_select_task_query(config, task_table)
+    else:
+        select, functions, mask = get_select_query(config, False, every_day)
+
+    query = select.format(
+        batch_size=10,
+        start=0)
+
+    return query

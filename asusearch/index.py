@@ -131,7 +131,6 @@ class IndexBuilder:
             else:
                 self.corpus_texts.append(self.dictionary.doc2bow(lemmas_text))
                 self.corpus_titles.append(self.dictionary.doc2bow(lemmas_title))
-
                 _doc = {
                     'type': input_doc[0],
                     'doc_id': input_doc[1],
@@ -162,7 +161,7 @@ class IndexBuilder:
 
     async def delete_by_type(self, type_: int):
         if not self.index_loaded:
-            raise Exception('Nothing delete. Index not loaded: call load_index()')
+            raise Exception('Nothing delete. Index not loaded: call load()')
 
         query = '''
                 SELECT `order`
@@ -170,12 +169,12 @@ class IndexBuilder:
                 FROM docs)
                 WHERE `type` = {type}'''.format(type=type_)
 
-        results = self.connection.execute(query)
+        results = self.session.execute(query)
         results = results.fetchall()
 
         for doc_order in results:
-            self.corpus_texts.pop(doc_order[0])
-            self.corpus_titles.pop(doc_order[0])
+            self.corpus_texts.pop(doc_order[0]-1)
+            self.corpus_titles.pop(doc_order[0]-1)
 
         query_delete = sql.delete(self.docs_table). \
             where(self.docs_table.c.type == type_)
@@ -200,16 +199,6 @@ class IndexBuilder:
         else:
             return -1
 
-    # async def clean_docs(self):
-    #     """
-    #     Очищает таблицу с информацией о документах.
-    #     Требуется вызвать перед добавлением нового индекса.
-    #     :return:
-    #     """
-    #     query = sql.delete(self.docs_table)
-    #     self.session.execute(query)
-    #     self.session.commit()
-    #
     async def stop(self):
         self.session.close()
         self.engine.dispose()

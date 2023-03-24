@@ -6,9 +6,9 @@
     "driver": "mysql",
     "host": "172.16.250.1",
     "port": "",
-    "database": "admin_asu_db",
+    "database": "admin_aspu_ru",
     "username": "seacher",
-    "password": "aM8OFAXc8x"
+    "password": "1bhwXxg349l"
   },
   "TASK_TABLE": "admin_search_task",
   "TABLES": [
@@ -35,10 +35,13 @@
     },
     {
       "table_id": 1,
-      "from_task": true,
+      "from_task": false,
+      "queries": {
+        "select": "SELECT 1, id, id_lang, news_news.enabled, title:{{caption}}, content:{{short_text, long_text}} FROM news_news_texts INNER JOIN news_news USING(id)"
+      },
       "field_timestamp": "",
       "field_active": "",
-      "active_value": "",
+      "active_value": 1,
       "table_name": "news_news_texts",
       "field_id": "id",
       "field_lang": "id_lang",
@@ -49,61 +52,24 @@
         "short_text",
         "long_text"
       ],
-      "fields_optional": [
-        "url"
-      ]
+      "fields_optional": []
     },
     {
       "table_id": 2,
-      "from_task": true,
+      "from_task": false,
       "field_timestamp": "",
-      "field_active": "",
-      "active_value": "",
-      "table_name": "employees",
-      "field_id": "id",
+      "field_active": "enabled",
+      "active_value": 1,
+      "table_name": "employees_persons",
+      "field_id": "id_person",
       "field_lang": "id_lang",
       "fields_title": [
-        "sName",
-        "fName",
-        "iName"
+        "fio"
       ],
       "fields_content": [
-        "Position",
-        "Scientific_interests",
-        "Monographies",
-        "Articles",
-        "Dictionaries",
-        "Chrestomathy",
-        "Educational_publications",
-        "Methodical_recommendations",
-        "Atlases",
-        "Other",
-        "Popular_science_publications",
-        "Experience_in_specialty"
+        "fio"
       ],
-      "fields_optional": [
-        "url"
-      ]
-    },
-    {
-      "table_id": 3,
-      "from_task": 1,
-      "field_timestamp": "",
-      "field_active": "",
-      "active_value": "",
-      "table_name": "partners_partners_texts",
-      "field_id": "id",
-      "field_lang": "id_lang",
-      "fields_title": [
-        "caption"
-      ],
-      "fields_content": [
-        "short_text",
-        "long_text"
-      ],
-      "fields_optional": [
-        "url"
-      ]
+      "fields_optional": []
     }
   ],
   "LANGUAGES": {

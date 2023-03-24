@@ -7,7 +7,8 @@ from gensim.corpora import Dictionary
 from gensim.models import TfidfModel
 from gensim.similarities import SparseMatrixSimilarity
 from asusearch.tools import preprocess_string
-from asusearch.tools import contains_latin
+from asusearch.tools import correct_keyboard_layout
+from asusearch.models import Corrector
 
 import sqlalchemy as sql
 from sqlalchemy import create_engine
@@ -59,60 +60,64 @@ class Seacher():
 
         self.index_loaded = True
 
+        self.corrector = Corrector()
+
         return True
 
     async def answer(self, query: str, batch_size: int, batch_i: int, type: int = -1) -> tuple:
         if not self.index_loaded:
-            raise Exception('Search unavailable. Index not loaded: сall load_index()')
+            raise Exception('Search unavailable. Index not loaded: сall load()')
+
+        lemm_cor_query = None
 
         # начало поисковой выдачи
         begin = batch_i * batch_size
 
         lemm_query = preprocess_string(query)
-        hmean_distances = self.get_distances(lemm_query)
+        hmean_distances = await self.get_distances(lemm_query)
 
         # если нет результатов, проверяется раскладка
-        if np.count_nonzero(hmean_distances, axis=1)[0] == 0:
-            query = correct_keyboard_layout(query)
+        if np.count_nonzero(hmean_distances) == 0:
+            corrected_query = self.corrector.correct_keyboard_layout(query)
             # если раскладка исправлена, снова вычисляется расстояние
-            if query != lemm_query:
-                right_query = query
-                lemm_query = preprocess_string(query)
-                hmean_distances = self.get_distances(lemm_query)
+            if corrected_query != query:
+                lemm_cor_query = preprocess_string(corrected_query)
+                hmean_distances = await self.get_distances(lemm_cor_query)
 
-        coefs = self.get_coefs()
-        hmean_distances = hmean_distances * coefs
+        if np.count_nonzero(hmean_distances) == 0:
+            return [], 0, query
+        elif lemm_cor_query is not None:
+            lemm_query = lemm_cor_query
 
-        sorted_distances_id = hmean_distances.argsort()[::-1]
-        nonzero_distances = np.nonzero(hmean_distances)[0]
-        # id ненулевых расстояний в порядке убывания их величины
-        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)]
-
-        query_params = {
-            'relevant_id': ', '.join(map(str, relevant_id + 1)),
-            'batch_size': batch_size,
-            'begin': begin
-        }
+        subquery = self.form_subquery_scores(hmean_distances)
 
         if type != -1:
-            query_params['type_cond'] = 'AND `type` = ' + type
+            type_cond = f' WHERE `type` = {type} '
         else:
-            query_params['type_cond'] = ''
+            type_cond = ''
 
         # запрос на получение сведений о релевантных документах в порядке их релевантности
-        query = '''
-                SELECT `type`, `doc_id`, `lang_id`, `optional`, `coef`
-                FROM (SELECT docs.*, ROW_NUMBER() OVER (ORDER BY docs.id) AS `order`
-                FROM docs)
-                WHERE `order` IN ({relevant_id})
-                {type_cond}
-                ORDER BY INSTR('{relevant_id}', `order`)
-                LIMIT {batch_size} OFFSET {begin}}'''.format(**query_params)
+        query = f'''
+        SELECT `type`, `doc_id`, `lang_id`, `optional`, `coef` * `score` AS `score`, COUNT() OVER () AS `count`
+        FROM (SELECT `docs`.*, ROW_NUMBER() OVER (ORDER BY `docs`.`id`) AS `pos`
+              FROM `docs`)
+                 INNER JOIN ({subquery}) `t` USING (`pos`)
+        {type_cond}
+        ORDER BY `score` DESC 
+        LIMIT {batch_size} OFFSET {begin};
+        '''
 
         results = self.connection.execute(query)
         results = results.fetchall()
 
-        return hmean_distances[relevant_id], results, len(nonzero_distances), query
+        if len(results) > 0:
+            size = results[0][5]
+        else:
+            size = 0
+
+        docs = self.parse_results(results)
+
+        return docs, size, ' '.join(lemm_query)
 
     @staticmethod
     def beta_hmean(a, b):
@@ -145,6 +150,29 @@ class Seacher():
         results = results.fetchall()
 
         return np.array(results)
+
+    @staticmethod
+    def parse_results(results):
+        docs = []
+        for result in results:
+            docs.append({
+                'type': result[0],
+                'doc_id': result[1],
+                'lang_id': result[2],
+                'score': result[4],
+                'optional': json.loads(result[3])
+            })
+
+        return docs
+
+    @staticmethod
+    def form_subquery_scores(distances):
+        values = []
+        for i, d in enumerate(distances):
+            if d > 0:
+                values.append(f'({i+1}, {d})')
+
+        return f'WITH `scores` (`pos`, `score`) AS (VALUES {", ".join(values)}) SELECT * FROM `scores`'
 
     async def get_distances(self, lemm_query):
         query_bow = self.dictionary.doc2bow(lemm_query)
