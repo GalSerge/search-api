@@ -1,5 +1,6 @@
 {
-  "CRONTAB_TASK": "",
+  "API_KEY": "ZrrtqOwvFl",
+  "SERVICE_NAME": "searchapi",
   "APPS": {
     "asu.edu.ru": "",
     "kaspy.asu.edu.ru": ""

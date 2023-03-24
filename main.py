@@ -5,6 +5,7 @@ import os
 import shutil
 import time
 import uvicorn
+from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException, Security
 # from fastapi.middleware.cors import CORSMiddleware
@@ -76,16 +77,24 @@ async def startup():
 
 
 @app.get('/updconfig')
-async def updconfig(app_name: str):
-    try:
-        statuses = await active_config(app_name)
-        detail = 'Queries test results:\n'
-        for t, status in statuses.items():
-            detail += f'Table {t}: {str(status)} \n'
-        return {'status': 'ok', 'detail': detail}
-    except Exception as e:
-        return {'status': 'error',
-                'detail': str(e)}
+async def updconfig(app_name: str = ''):
+    if app_name == '':
+        try:
+            await update_global_config(app_name)
+            return {'status': 'ok', 'detail': 'Global config updated successfully'}
+        except Exception as e:
+            return {'status': 'error',
+                    'detail': str(e)}
+    else:
+        try:
+            statuses = await active_config(app_name)
+            detail = 'Queries test results:\n'
+            for t, status in statuses.items():
+                detail += f'Table {t}: {str(status)} \n'
+            return {'status': 'ok', 'detail': detail}
+        except Exception as e:
+            return {'status': 'error',
+                    'detail': str(e)}
 
 
 @app.get('/search')
@@ -128,6 +137,29 @@ async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
 
     return {'status': 'ok',
             'detail': f'{configs[site_id]["APP"]}: index successful edit.'}
+
+
+@app.get('/build-all')
+async def build_all(batch_size: int = 100):
+    global_config = await get_global_config()
+    successful_apps = dict()
+
+    for id, config in configs.items():
+        if config['APP'] in global_config['APPS']:
+            now = datetime.now()
+            current_time = now.strftime('%a, %d %b %Y %H:%M:%S')
+            if global_config['APPS'][config['APP']] != '':
+                d1 = datetime.strptime(global_config['APPS'][config['APP']], '%a, %d %b %Y %H:%M:%S')
+                d2 = datetime.strptime(current_time, '%a, %d %b %Y %H:%M:%S')
+                delta = d2 - d1
+                if delta.days < config['INDEX_EVERY_DAY']:
+                    continue
+            status = await build(batch_size, timestamp=1, site_id=config['APP_ID'])
+            if status['status'] == 'ok':
+                successful_apps[config['APP']] = current_time
+
+    await save_global_config(config)
+    os.system(f'service {global_config["SERVICE_NAME"]} restart')
 
 
 @app.get('/clear')

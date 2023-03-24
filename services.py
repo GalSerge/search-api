@@ -2,7 +2,6 @@ import json
 import string
 import secrets
 import os
-import sys
 from asusearch.search import Seacher
 from asusearch.index import IndexBuilder
 
@@ -49,7 +48,7 @@ async def active_config(app_name):
         except Exception as e:
             error += str(e)
 
-        if (result is not None and len(result) > 0):
+        if result is not None and len(result) > 0:
             statuses[t['table_id']] = 'ok'
         else:
             statuses[t['table_id']] = f'{error} "{query}"'
@@ -62,16 +61,17 @@ async def active_config(app_name):
     return statuses
 
 
-async def update_global_config(app_name):
-    config_path = 'search.config.json'
-    with open(config_path, 'r') as f:
-        config = json.load(f)
+async def update_global_config(app_name: str = ''):
+    config = await get_global_config()
 
-    if not app_name in config['APPS']:
+    if config['API_KEY'] == '':
+        config['API_KEY'] = ''.join(
+            secrets.choice(string.ascii_uppercase + string.ascii_lowercase) for i in range(10))
+
+    if app_name != '' and not app_name in config['APPS']:
         config['APPS'][app_name] = ''
 
-    with open(config_path, 'w') as f:
-        f.write(json.dumps(config, indent=2))
+    await save_global_config(config)
 
     return len(config['APPS']) - 1
 
@@ -87,6 +87,20 @@ async def get_configs():
         except Exception as e:
             print(e)
     return configs
+
+
+async def get_global_config():
+    config_path = 'search.config.json'
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+
+    return config
+
+
+async def save_global_config(config):
+    config_path = 'search.config.json'
+    with open(config_path, 'w') as f:
+        f.write(json.dumps(config, indent=2))
 
 
 async def get_seachers(configs: list):
