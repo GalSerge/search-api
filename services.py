@@ -19,6 +19,9 @@ async def active_config(app_name):
         config['APP_KEY'] = ''.join(
             secrets.choice(string.ascii_uppercase + string.ascii_lowercase) for i in range(40))
 
+    if config['APP_ID'] == '':
+        config['APP_ID'] = await update_global_config(app_name)
+
     # создание директории для индекса
     path = 'index/' + config['APP']
     if not os.path.exists(path):
@@ -57,6 +60,20 @@ async def active_config(app_name):
         f.write(json.dumps(config, indent=2))
 
     return statuses
+
+
+async def update_global_config(app_name):
+    config_path = 'search.config.json'
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+
+    if not app_name in config['APPS']:
+        config['APPS'][app_name] = ''
+
+    with open(config_path, 'w') as f:
+        f.write(json.dumps(config, indent=2))
+
+    return len(config['APPS']) - 1
 
 
 async def get_configs():
