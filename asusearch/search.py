@@ -95,7 +95,7 @@ class Seacher():
         relevant_id = ', '.join(map(str, relevant_id + 1))
 
         if type != -1:
-            type_cond = f' WHERE `type` = {type} '
+            type_cond = f' AND `type` = {type} '
         else:
             type_cond = ''
 
