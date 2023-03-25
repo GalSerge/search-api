@@ -88,7 +88,11 @@ class Seacher():
         elif lemm_cor_query is not None:
             lemm_query = lemm_cor_query
 
-        subquery = self.form_subquery_scores(hmean_distances)
+        sorted_distances_id = hmean_distances.argsort()[::-1]
+        nonzero_distances = np.nonzero(hmean_distances)[0]
+        # id ненулевых расстояний в порядке убывания расстояний
+        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)][:batch_size * 10]
+        relevant_id = ', '.join(map(str, relevant_id + 1))
 
         if type != -1:
             type_cond = f' WHERE `type` = {type} '
@@ -97,14 +101,11 @@ class Seacher():
 
         # запрос на получение сведений о релевантных документах в порядке их релевантности
         query = f'''
-        SELECT `type`, `doc_id`, `lang_id`, `optional`, `coef` * `score` AS `score`, COUNT() OVER () AS `count`
-        FROM (SELECT `docs`.*, ROW_NUMBER() OVER (ORDER BY `docs`.`id`) AS `pos`
-              FROM `docs`)
-                 INNER JOIN ({subquery}) `t` USING (`pos`)
-        {type_cond}
-        ORDER BY `score` DESC 
-        LIMIT {batch_size} OFFSET {begin};
-        '''
+                    SELECT `type`, `doc_id`, `lang_id`, `optional`, 1,  COUNT() OVER () AS `count`
+                    FROM (SELECT docs.*, ROW_NUMBER() OVER (ORDER BY docs.id) AS `order`
+                    FROM docs)
+                    WHERE `order` IN ({relevant_id}) {type_cond}
+                    ORDER BY INSTR('{relevant_id}', `order`) LIMIT {batch_size} OFFSET {begin}'''
 
         results = self.connection.execute(query)
         results = results.fetchall()
@@ -166,10 +167,11 @@ class Seacher():
 
     @staticmethod
     def form_subquery_scores(distances):
+
         values = []
         for i, d in enumerate(distances):
             if d > 0:
-                values.append(f'({i+1}, {d})')
+                values.append(f'({i + 1}, {d})')
 
         return f'WITH `scores` (`pos`, `score`) AS (VALUES {", ".join(values)}) SELECT * FROM `scores`'
 
