@@ -121,6 +121,7 @@ async def shutdown():
 @app.get('/build')
 async def restart():
     await shutdown()
+    global_config = await get_global_config()
     os.system(f'service {global_config["SERVICE_NAME"]} restart')
 
 
