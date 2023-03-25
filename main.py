@@ -2,6 +2,7 @@
 
 import databases
 import os
+import subprocess
 import shutil
 import time
 import uvicorn
@@ -96,7 +97,8 @@ async def updconfig(app_name: str = ''):
 
 
 @app.get('/search')
-async def search(q: str, batch_size: int = 30, batch_i: int = 0, type: int = -1, site_id: int = 0):
+async def search(q: str, batch_size: int = 30, batch_i: int = 0, type: int = -1,
+                site_id: int = Depends(get_api_key)):
     if seachers[site_id] is not None:
         results, size, right_q = await get_answer(q, seachers[site_id], batch_size, batch_i, type)
     else:
@@ -121,7 +123,8 @@ async def shutdown():
 async def restart():
     await shutdown()
     global_config = await get_global_config()
-    os.system(f'service {global_config["SERVICE_NAME"]} restart')
+    print(f'service {global_config["SERVICE_NAME"]} restart')
+    subprocess.call(f'service {global_config["SERVICE_NAME"]} restart', shell=True)
 
 
 @app.get('/build')
@@ -163,11 +166,11 @@ async def build_all(batch_size: int = 100):
                 global_config['APPS'][config['APP']] = current_time
 
     await save_global_config(global_config)
-    os.system(f'service {global_config["SERVICE_NAME"]} restart')
+    subprocess.call(f'service {global_config["SERVICE_NAME"]} restart', shell=True)
 
 
 @app.get('/clear')
-async def clear_index(site_id: int = 0):
+async def clear_index(site_id: int = Depends(get_api_key)):
     shutil.rmtree('index/' + configs[site_id]['APP'], ignore_errors=True)
 
     # создание директории для индекса
@@ -183,7 +186,7 @@ async def clear_index(site_id: int = 0):
 
 
 @app.get('/delete')
-async def delete(type: int = -1, site_id: int = 0):
+async def delete(type: int = -1, site_id: int = Depends(get_api_key)):
     try:
         builder = get_builder(configs[site_id])
         await delete_index(builder, configs[site_id], type)
