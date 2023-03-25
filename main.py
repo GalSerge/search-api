@@ -23,14 +23,13 @@ def get_api_key(api_key_header: str = Security(api_key_header)) -> int:
     :param api_key_header:
     :return: id сайта, к которому подходит полученный ключ
     """
-    global configs
-    for i, config in enumerate(configs):
+    for i, config in configs.items():
         if api_key_header == config['APP_KEY']:
             return i
-    else:
-        raise HTTPException(
-            status_code=403, detail='could not validate credentials'
-        )
+
+    raise HTTPException(
+        status_code=403, detail='could not validate credentials'
+    )
 
 
 app = FastAPI(debug=False)
@@ -53,9 +52,9 @@ app.add_middleware(
 app.add_middleware(HTTPSRedirectMiddleware)
 
 
-configs = []
-seachers = []
-connections = []
+configs = dict()
+seachers = dict()
+connections = dict()
 
 
 @app.on_event('startup')
@@ -118,7 +117,7 @@ async def shutdown():
             await seachers[i].stop()
 
 
-@app.get('/build')
+@app.get('/restart')
 async def restart():
     await shutdown()
     global_config = await get_global_config()
@@ -148,7 +147,6 @@ async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
 @app.get('/build-all')
 async def build_all(batch_size: int = 100):
     global_config = await get_global_config()
-    successful_apps = dict()
 
     for id, config in configs.items():
         if config['APP'] in global_config['APPS']:
@@ -162,9 +160,9 @@ async def build_all(batch_size: int = 100):
                     continue
             status = await build(batch_size, timestamp=1, site_id=config['APP_ID'])
             if status['status'] == 'ok':
-                successful_apps[config['APP']] = current_time
+                global_config['APPS'][config['APP']] = current_time
 
-    await save_global_config(config)
+    await save_global_config(global_config)
     os.system(f'service {global_config["SERVICE_NAME"]} restart')
 
 
