@@ -8,7 +8,6 @@ import uvicorn
 from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException, Security
-# from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.security.api_key import APIKeyHeader, APIKey
@@ -120,6 +119,12 @@ async def shutdown():
 
 
 @app.get('/build')
+async def restart():
+    await shutdown()
+    os.system(f'service {global_config["SERVICE_NAME"]} restart')
+
+
+@app.get('/build')
 async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
                 site_id: int = Depends(get_api_key)):
     try:
@@ -194,4 +199,4 @@ async def delete(type: int = -1, site_id: int = 0):
 
 @app.get('/')
 async def root():
-    return {'message': 'Hello World'}
+    return {'status': 'ok', 'detail': 'ASU SearchAPI works!'}
