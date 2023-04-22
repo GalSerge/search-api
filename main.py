@@ -130,6 +130,7 @@ async def restart():
 @app.get('/build')
 async def build(batch_size: int = 100, table_id: int = -1, timestamp: int = 0,
                 site_id: int = Depends(get_api_key)):
+    configs = await get_configs()
     try:
         builder = get_builder(configs[site_id])
     except Exception as e:
