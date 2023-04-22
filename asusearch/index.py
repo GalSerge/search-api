@@ -153,6 +153,7 @@ class IndexBuilder:
                            self.docs_table.c.lang_id == doc[2]))
 
         self.session.execute(query_delete)
+        self.session.commit()
 
         self.corpus_texts.pop(doc_id)
         self.corpus_titles.pop(doc_id)
@@ -167,7 +168,7 @@ class IndexBuilder:
                 SELECT `order`
                 FROM (SELECT docs.*, ROW_NUMBER() OVER (ORDER BY docs.id) AS `order`
                 FROM docs)
-                WHERE `type` = {type}'''.format(type=type_)
+                WHERE `type` = {type} ORDER BY `order` DESC'''.format(type=type_)
 
         results = self.session.execute(query)
         results = results.fetchall()
