@@ -87,7 +87,7 @@ def lemm_text(tokens: list, lang) -> list:
 STR_FILTERS = [strip_tags, strip_punctuation, strip_multiple_whitespaces]
 
 
-def preprocess_string(s: str, lang: str = ''):
+def preprocess_string(s: str, lang: str = '', tokens=False):
     s = utils.to_unicode(s)
     s = s.lower()
     s = s.replace('ё', 'е')
@@ -96,6 +96,11 @@ def preprocess_string(s: str, lang: str = ''):
         s = f(s)
 
     tokens = s.split()
-    tokens = lemm_text(tokens, lang)
+    lemm_tokens = lemm_text(tokens, lang)
 
-    return tokens
+    if tokens:
+        tokens = ' '.join(tokens)
+    else:
+        tokens = ''
+
+    return tokens, lemm_tokens

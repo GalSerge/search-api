@@ -72,7 +72,7 @@ class Seacher():
         # начало поисковой выдачи
         begin = batch_i * batch_size
 
-        lemm_query = preprocess_string(query)
+        clean_query, lemm_query = preprocess_string(query)
         hmean_distances = await self.get_distances(lemm_query)
 
         # если нет результатов, проверяется раскладка
@@ -80,18 +80,18 @@ class Seacher():
             corrected_query = self.corrector.correct_keyboard_layout(query)
             # если раскладка исправлена, снова вычисляется расстояние
             if corrected_query != query:
-                lemm_cor_query = preprocess_string(corrected_query)
+                clean_cor_query, lemm_cor_query = preprocess_string(corrected_query)
                 hmean_distances = await self.get_distances(lemm_cor_query)
 
         if np.count_nonzero(hmean_distances) == 0:
             return [], 0, query
         elif lemm_cor_query is not None:
-            lemm_query = lemm_cor_query
+            clean_query = clean_cor_query
 
         sorted_distances_id = hmean_distances.argsort()[::-1]
         nonzero_distances = np.nonzero(hmean_distances)[0]
         # id ненулевых расстояний в порядке убывания расстояний
-        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)][:batch_size * 10]
+        relevant_id = sorted_distances_id[np.in1d(sorted_distances_id, nonzero_distances)][:batch_size * 30]
         relevant_id = ', '.join(map(str, relevant_id + 1))
 
         if type != -1:
@@ -101,7 +101,7 @@ class Seacher():
 
         # запрос на получение сведений о релевантных документах в порядке их релевантности
         query = f'''
-                    SELECT `type`, `doc_id`, `lang_id`, `optional`, 1,  COUNT() OVER () AS `count`
+                    SELECT `type`, `doc_id`, `lang_id`, `optional`, 1, COUNT() OVER () AS `count`
                     FROM (SELECT docs.*, ROW_NUMBER() OVER (ORDER BY docs.id) AS `order`
                     FROM docs)
                     WHERE `order` IN ({relevant_id}) {type_cond}
@@ -117,7 +117,7 @@ class Seacher():
 
         docs = self.parse_results(results)
 
-        return docs, size, ' '.join(lemm_query)
+        return docs, size, clean_query
 
     @staticmethod
     def beta_hmean(a, b):
@@ -184,3 +184,13 @@ class Seacher():
         hmean_distances = self.beta_hmean(titles_distances, texts_distances)
 
         return hmean_distances
+
+    async def complete(self, prefix, count):
+        query = f'''SELECT DISTINCT `text` FROM (
+                    SELECT `text`, `coef` * 10 AS `coef` FROM `autocomplete` WHERE `text` LIKE "{prefix.lower()}%"
+                    UNION ALL
+                    SELECT `text`, `coef` * 5 AS `coef` FROM `autocomplete` WHERE `text` LIKE "%{prefix.lower()}%")
+                    ORDER BY `coef` DESC LIMIT {count}'''
+
+        results = self.connection.execute(query).all()
+        return [result[0] for result in results]

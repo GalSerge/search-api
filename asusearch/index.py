@@ -49,6 +49,15 @@ class IndexBuilder:
         if not self.engine.has_table('docs'):
             metadata_obj.create_all(self.engine)
 
+        self.autocomplete_table = sql.Table('autocomplete', metadata_obj,
+                                    sql.Column('id', sql.Integer, primary_key=True),
+                                    sql.Column('coef', sql.Float, default=1.0),
+                                    sql.Column('text', sql.String(100), unique=True))
+
+        # если таблица autocomplete отсутствует
+        if not self.engine.has_table('autocomplete'):
+            metadata_obj.create_all(self.engine)
+
     async def load(self, path_prefix='index'):
         if os.path.exists(path_prefix) and os.path.isdir(path_prefix):
             if not os.listdir(path_prefix):
@@ -101,8 +110,13 @@ class IndexBuilder:
                     await self.delete(input_doc, doc_id)
                 continue
 
-            lemmas_title = preprocess_string(s=input_doc[5], lang=lang[str(input_doc[2])])
-            lemmas_text = preprocess_string(s=input_doc[6], lang=lang[str(input_doc[2])])
+            clean_title, lemmas_title = preprocess_string(s=input_doc[5], lang=lang[str(input_doc[2])], tokens=True)
+            _, lemmas_text = preprocess_string(s=input_doc[6], lang=lang[str(input_doc[2])])
+
+            try:
+                self.session.execute(sql.insert(self.autocomplete_table, values={'text': clean_title, 'coef': 2}))
+            except Exception:
+                pass
 
             self.dictionary.add_documents([lemmas_title])
             self.dictionary.add_documents([lemmas_text])

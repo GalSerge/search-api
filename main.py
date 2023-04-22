@@ -200,6 +200,12 @@ async def delete(type: int = -1, site_id: int = Depends(get_api_key)):
             'detail': f'{configs[site_id]["APP"]}: index successful delete'}
 
 
+@app.get('/complete')
+async def complete(prefix: str = 'а', count: int = 5, site_id: int = 0):
+    candidates = await seachers[site_id].complete(prefix, count)
+    return candidates
+
+
 @app.get('/')
 async def root():
     return {'status': 'ok', 'detail': 'ASU SearchAPI works!'}
