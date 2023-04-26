@@ -38,7 +38,10 @@ async def active_config(app_name):
     await connection.connect()
 
     statuses = {}
-    for t in config['TABLES']:
+    for table_id, t in enumerate(config['TABLES']):
+        if config['TABLES'][table_id]['table_id'] == 0:
+            config['TABLES'][table_id]['table_id'] = table_id
+            
         result = []
         query = ''
         error = 'error: '
@@ -49,9 +52,9 @@ async def active_config(app_name):
             error += str(e)
 
         if result is not None and len(result) > 0:
-            statuses[t['table_id']] = 'ok'
+            statuses[table_id] = 'ok'
         else:
-            statuses[t['table_id']] = f'{error} "{query}"'
+            statuses[table_id] = f'{error} "{query}"'
 
     await connection.disconnect()
 
