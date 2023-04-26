@@ -1,0 +1,7 @@
+/log
+/index/**
+**/__pycache__
+configs
+search.config.json
+gunicorn
+env
